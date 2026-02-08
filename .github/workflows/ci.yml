@@ -7,7 +7,15 @@ on:
             - main
 
 jobs:
-    verify:
+    fmt:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/setup
+            - name: Check formatting
+              run: make fmt-check
+
+    lint:
         runs-on: ${{ matrix.os }}
         strategy:
             fail-fast: false
@@ -16,9 +24,17 @@ jobs:
         steps:
             - uses: actions/checkout@v4
             - uses: ./.github/actions/setup
-            - name: Check formatting
-              run: make fmt-check
             - name: Run clippy
               run: make lint
+
+    test:
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/setup
             - name: Run tests
               run: make test
