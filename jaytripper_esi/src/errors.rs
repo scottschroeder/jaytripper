@@ -30,6 +30,8 @@ pub enum EsiError {
     InvalidTokenSubject(String),
     #[error("invalid token scope claim format: {0}")]
     InvalidScopeClaim(String),
+    #[error("missing required scopes: {missing:?}")]
+    MissingRequiredScopes { missing: Vec<String> },
     #[error("{0}")]
     Message(String),
 }

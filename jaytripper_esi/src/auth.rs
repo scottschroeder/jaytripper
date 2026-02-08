@@ -1,7 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::{
-    EsiResult,
+    EsiError, EsiResult,
     client::SsoClient,
     token_store::TokenStore,
     types::{AuthSession, LoginRequest},
@@ -78,9 +78,18 @@ where
         &mut self,
         code: &str,
         callback_state: &str,
+        required_scopes: &[String],
     ) -> EsiResult<AuthSession> {
         let now = self.clock.now_epoch_secs()?;
         let tokens = self.client.exchange_code(code, callback_state).await?;
+
+        let missing_scopes = missing_required_scopes(&tokens.scopes, required_scopes);
+        if !missing_scopes.is_empty() {
+            self.store.clear_session(tokens.character_id)?;
+            return Err(EsiError::MissingRequiredScopes {
+                missing: missing_scopes,
+            });
+        }
 
         let session = AuthSession {
             character_id: tokens.character_id,
@@ -96,19 +105,34 @@ where
         Ok(session)
     }
 
-    pub fn load_session(&self) -> EsiResult<Option<AuthSession>> {
-        self.store.load_session()
+    pub fn load_session(&self, character_id: u64) -> EsiResult<Option<AuthSession>> {
+        self.store.load_session(character_id)
     }
 
-    pub fn logout(&self) -> EsiResult<()> {
-        self.store.clear_session()
+    pub fn logout(&self, character_id: u64) -> EsiResult<()> {
+        self.store.clear_session(character_id)
     }
 
-    pub async fn ensure_valid_session(&mut self) -> EsiResult<EnsureSessionResult> {
+    pub async fn ensure_valid_session(
+        &mut self,
+        character_id: u64,
+        required_scopes: &[String],
+    ) -> EsiResult<EnsureSessionResult> {
         let now = self.clock.now_epoch_secs()?;
-        let Some(mut session) = self.store.load_session()? else {
+        let Some(mut session) = self.store.load_session(character_id)? else {
             return Ok(EnsureSessionResult::Missing);
         };
+
+        let missing_scopes = missing_required_scopes(&session.scopes, required_scopes);
+        if !missing_scopes.is_empty() {
+            self.store.clear_session(character_id)?;
+            return Ok(EnsureSessionResult::NeedsReauth {
+                reason: EsiError::MissingRequiredScopes {
+                    missing: missing_scopes,
+                }
+                .to_string(),
+            });
+        }
 
         if !session.should_refresh(now, self.refresh_skew_secs) {
             return Ok(EnsureSessionResult::Ready(session));
@@ -120,6 +144,18 @@ where
                 session.access_expires_at_epoch_secs = tokens.access_expires_at_epoch_secs;
                 session.refresh_token = tokens.refresh_token;
                 session.updated_at_epoch_secs = now;
+
+                let missing_scopes = missing_required_scopes(&session.scopes, required_scopes);
+                if !missing_scopes.is_empty() {
+                    self.store.clear_session(character_id)?;
+                    return Ok(EnsureSessionResult::NeedsReauth {
+                        reason: EsiError::MissingRequiredScopes {
+                            missing: missing_scopes,
+                        }
+                        .to_string(),
+                    });
+                }
+
                 self.store.save_session(&session)?;
                 Ok(EnsureSessionResult::Ready(session))
             }
@@ -130,9 +166,17 @@ where
     }
 }
 
+fn missing_required_scopes(granted_scopes: &[String], required_scopes: &[String]) -> Vec<String> {
+    required_scopes
+        .iter()
+        .filter(|required| !granted_scopes.iter().any(|granted| granted == *required))
+        .cloned()
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
-    use std::sync::Mutex;
+    use std::{collections::HashMap, sync::Mutex};
 
     use crate::{
         EsiError, EsiResult,
@@ -155,21 +199,29 @@ mod tests {
 
     #[derive(Default)]
     struct MemoryStore {
-        session: Mutex<Option<AuthSession>>,
+        sessions: Mutex<HashMap<u64, AuthSession>>,
     }
 
     impl TokenStore for MemoryStore {
-        fn load_session(&self) -> EsiResult<Option<AuthSession>> {
-            Ok(self.session.lock().expect("lock").clone())
+        fn load_session(&self, character_id: u64) -> EsiResult<Option<AuthSession>> {
+            Ok(self
+                .sessions
+                .lock()
+                .expect("lock")
+                .get(&character_id)
+                .cloned())
         }
 
         fn save_session(&self, session: &AuthSession) -> EsiResult<()> {
-            *self.session.lock().expect("lock") = Some(session.clone());
+            self.sessions
+                .lock()
+                .expect("lock")
+                .insert(session.character_id, session.clone());
             Ok(())
         }
 
-        fn clear_session(&self) -> EsiResult<()> {
-            *self.session.lock().expect("lock") = None;
+        fn clear_session(&self, character_id: u64) -> EsiResult<()> {
+            self.sessions.lock().expect("lock").remove(&character_id);
             Ok(())
         }
     }
@@ -234,15 +286,57 @@ mod tests {
         let mut service = AuthService::with_clock(client, store, FixedClock { now: 777 });
 
         let session = service
-            .complete_login("code", "state")
+            .complete_login(
+                "code",
+                "state",
+                &["esi-location.read_location.v1".to_string()],
+            )
             .await
             .expect("complete login should succeed");
 
         assert_eq!(session.character_id, 9001);
         assert_eq!(session.updated_at_epoch_secs, 777);
         assert_eq!(
-            service.load_session().expect("load should work"),
+            service.load_session(9001).expect("load should work"),
             Some(session)
+        );
+    }
+
+    #[tokio::test]
+    async fn complete_login_fails_and_clears_when_required_scope_missing() {
+        let client = MockClient {
+            login_request: None,
+            initial_tokens: Some(InitialAuthTokens {
+                character_id: 9001,
+                character_name: Some("Pilot".to_string()),
+                scopes: vec!["publicData".to_string()],
+                access_token: "new-access".to_string(),
+                access_expires_at_epoch_secs: 1000,
+                refresh_token: "new-refresh".to_string(),
+            }),
+            refresh_result: None,
+        };
+        let store = MemoryStore::default();
+        store
+            .save_session(&sample_session(10_000))
+            .expect("save should work");
+        let mut service = AuthService::with_clock(client, store, FixedClock { now: 777 });
+
+        let err = service
+            .complete_login(
+                "code",
+                "state",
+                &["esi-location.read_location.v1".to_string()],
+            )
+            .await
+            .expect_err("complete login should fail when scope is missing");
+
+        assert!(matches!(err, EsiError::MissingRequiredScopes { .. }));
+        assert!(
+            service
+                .load_session(9001)
+                .expect("load should work")
+                .is_none()
         );
     }
 
@@ -261,7 +355,7 @@ mod tests {
             .with_refresh_skew_secs(60);
 
         let result = service
-            .ensure_valid_session()
+            .ensure_valid_session(9001, &["esi-location.read_location.v1".to_string()])
             .await
             .expect("ensure should succeed");
 
@@ -287,7 +381,7 @@ mod tests {
             .with_refresh_skew_secs(60);
 
         let result = service
-            .ensure_valid_session()
+            .ensure_valid_session(9001, &["esi-location.read_location.v1".to_string()])
             .await
             .expect("ensure should succeed");
 
@@ -313,7 +407,7 @@ mod tests {
             .with_refresh_skew_secs(60);
 
         let result = service
-            .ensure_valid_session()
+            .ensure_valid_session(9001, &["esi-location.read_location.v1".to_string()])
             .await
             .expect("ensure should succeed with needs reauth state");
 
@@ -321,6 +415,42 @@ mod tests {
             panic!("expected needs reauth");
         };
         assert!(reason.contains("refresh token rejected"));
-        assert!(service.load_session().expect("load should work").is_some());
+        assert!(
+            service
+                .load_session(9001)
+                .expect("load should work")
+                .is_some()
+        );
+    }
+
+    #[tokio::test]
+    async fn ensure_valid_session_clears_when_required_scope_missing() {
+        let client = MockClient {
+            login_request: None,
+            initial_tokens: None,
+            refresh_result: None,
+        };
+        let store = MemoryStore::default();
+        store
+            .save_session(&sample_session(10_000))
+            .expect("save should work");
+        let mut service = AuthService::with_clock(client, store, FixedClock { now: 500 })
+            .with_refresh_skew_secs(60);
+
+        let result = service
+            .ensure_valid_session(9001, &["esi-location.read_ship_type.v1".to_string()])
+            .await
+            .expect("ensure should produce a needs reauth state");
+
+        let EnsureSessionResult::NeedsReauth { reason } = result else {
+            panic!("expected needs reauth");
+        };
+        assert!(reason.contains("missing required scopes"));
+        assert!(
+            service
+                .load_session(9001)
+                .expect("load should work")
+                .is_none()
+        );
     }
 }
