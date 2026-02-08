@@ -1,0 +1,19 @@
+name: setup
+description: Common CI setup
+
+runs:
+    using: composite
+    steps:
+        - name: Set up Rust
+          uses: dtolnay/rust-toolchain@stable
+          with:
+              components: rustfmt, clippy
+
+        - name: Install nightly rustfmt
+          shell: bash
+          run: rustup toolchain install nightly --component rustfmt --profile minimal
+
+        - name: Cache Rust artifacts
+          uses: Swatinem/rust-cache@v2
+          with:
+              workspaces: ". -> target"
