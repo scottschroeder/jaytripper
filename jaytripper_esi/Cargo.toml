@@ -3,6 +3,9 @@ name = "jaytripper_esi"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+real-keyring-tests = []
+
 [dependencies]
 rfesi = "0.50"
 serde = { version = "1", features = ["derive"] }
@@ -24,3 +27,8 @@ keyring = { version = "3.6.3", features = ["sync-secret-service", "crypto-rust",
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }
 url = "2"
+
+[[test]]
+name = "keyring_real"
+path = "tests/keyring_real.rs"
+required-features = ["real-keyring-tests"]

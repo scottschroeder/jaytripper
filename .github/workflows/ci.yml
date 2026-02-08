@@ -38,3 +38,30 @@ jobs:
             - uses: ./.github/actions/setup
             - name: Run tests
               run: make test
+
+    keyring-integration:
+        runs-on: ${{ matrix.os }}
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, windows-latest, macos-latest]
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/setup
+
+            - name: Install Linux keyring dependencies
+              if: matrix.os == 'ubuntu-latest'
+              run: sudo apt-get update && sudo apt-get install -y gnome-keyring dbus-x11
+
+            - name: Run keyring integration test (Linux)
+              if: matrix.os == 'ubuntu-latest'
+              run: >-
+                  dbus-run-session -- bash -lc 'eval "$(echo ci-password | gnome-keyring-daemon --unlock --components=secrets)"; cargo test -p jaytripper_esi --features real-keyring-tests --test keyring_real -- --test-threads=1'
+
+            - name: Run keyring integration test (macOS)
+              if: matrix.os == 'macos-latest'
+              run: cargo test -p jaytripper_esi --features real-keyring-tests --test keyring_real -- --test-threads=1
+
+            - name: Run keyring integration test (Windows)
+              if: matrix.os == 'windows-latest'
+              run: cargo test -p jaytripper_esi --features real-keyring-tests --test keyring_real -- --test-threads=1
