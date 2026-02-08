@@ -1,0 +1,7 @@
+[workspace]
+resolver = "3"
+
+members = [
+  "jaytripper_core", "jaytripper_esi", "jaytripper_store", "jaytripper_render", "jaytripper_app", "jaytripper_tui", "jaytripper_ui",
+]
+
