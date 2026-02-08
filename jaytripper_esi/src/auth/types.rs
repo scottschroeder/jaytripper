@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use crate::ids::CharacterId;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LoginRequest {
     pub authorization_url: String,
@@ -8,7 +10,7 @@ pub struct LoginRequest {
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AuthSession {
-    pub character_id: u64,
+    pub character_id: CharacterId,
     pub character_name: Option<String>,
     pub scopes: Vec<String>,
     pub access_token: String,

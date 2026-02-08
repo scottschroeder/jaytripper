@@ -1,5 +1,7 @@
 use thiserror::Error;
 
+use crate::ids::CharacterId;
+
 pub type EsiResult<T> = Result<T, EsiError>;
 
 #[derive(Debug, Error)]
@@ -30,8 +32,12 @@ pub enum EsiError {
     InvalidTokenSubject(String),
     #[error("invalid token scope claim format: {0}")]
     InvalidScopeClaim(String),
+    #[error("character id {0:?} does not fit ESI integer bounds")]
+    InvalidCharacterId(CharacterId),
     #[error("missing required scopes: {missing:?}")]
     MissingRequiredScopes { missing: Vec<String> },
+    #[error("reauthentication required: {reason}")]
+    NeedsReauth { reason: String },
     #[error("{0}")]
     Message(String),
 }

@@ -1,11 +1,18 @@
+use async_trait::async_trait;
 use rfesi::prelude::{Esi, EsiBuilder, PkceVerifier, TokenClaims};
 use serde::Deserialize;
 
-use crate::{EsiError, EsiResult, config::EsiConfig, types::LoginRequest};
+use crate::{
+    EsiError, EsiResult,
+    api::CharacterLocation,
+    auth::LoginRequest,
+    config::EsiConfig,
+    ids::{CharacterId, SolarSystemId, StationId, StructureId},
+};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InitialAuthTokens {
-    pub character_id: u64,
+    pub character_id: CharacterId,
     pub character_name: Option<String>,
     pub scopes: Vec<String>,
     pub access_token: String,
@@ -20,8 +27,8 @@ pub struct RefreshTokens {
     pub refresh_token: String,
 }
 
-#[allow(async_fn_in_trait)]
-pub trait SsoClient {
+#[async_trait]
+pub trait SsoAuthClient {
     fn begin_login(&mut self) -> EsiResult<LoginRequest>;
     async fn exchange_code(
         &mut self,
@@ -29,6 +36,14 @@ pub trait SsoClient {
         callback_state: &str,
     ) -> EsiResult<InitialAuthTokens>;
     async fn refresh(&mut self, refresh_token: &str) -> EsiResult<RefreshTokens>;
+}
+
+#[async_trait]
+pub trait EsiApiClient {
+    async fn get_current_location(
+        &mut self,
+        character_id: CharacterId,
+    ) -> EsiResult<CharacterLocation>;
 }
 
 #[derive(Debug)]
@@ -80,7 +95,8 @@ impl RfesiSsoClient {
     }
 }
 
-impl SsoClient for RfesiSsoClient {
+#[async_trait]
+impl SsoAuthClient for RfesiSsoClient {
     fn begin_login(&mut self) -> EsiResult<LoginRequest> {
         let auth_info = self.esi.get_authorize_url()?;
 
@@ -139,7 +155,25 @@ impl SsoClient for RfesiSsoClient {
     }
 }
 
-fn parse_character_id(claims: &TokenClaims) -> EsiResult<u64> {
+#[async_trait]
+impl EsiApiClient for RfesiSsoClient {
+    async fn get_current_location(
+        &mut self,
+        character_id: CharacterId,
+    ) -> EsiResult<CharacterLocation> {
+        let character_id = i32::try_from(character_id.0)
+            .map_err(|_| EsiError::InvalidCharacterId(character_id))?;
+        let location = self.esi.group_location().get_location(character_id).await?;
+
+        Ok(CharacterLocation {
+            solar_system_id: SolarSystemId(location.solar_system_id),
+            station_id: location.station_id.map(StationId),
+            structure_id: location.structure_id.map(StructureId),
+        })
+    }
+}
+
+fn parse_character_id(claims: &TokenClaims) -> EsiResult<CharacterId> {
     let parts: Vec<&str> = claims.sub.split(':').collect();
     if parts.len() != 3 || parts[0] != "CHARACTER" || parts[1] != "EVE" {
         return Err(EsiError::InvalidTokenSubject(claims.sub.clone()));
@@ -147,6 +181,7 @@ fn parse_character_id(claims: &TokenClaims) -> EsiResult<u64> {
 
     parts[2]
         .parse::<u64>()
+        .map(CharacterId)
         .map_err(|_| EsiError::InvalidTokenSubject(claims.sub.clone()))
 }
 
@@ -177,12 +212,13 @@ mod tests {
     use serde_json::json;
 
     use super::{parse_character_id, parse_scopes};
+    use crate::ids::CharacterId;
 
     #[test]
     fn parses_character_id_from_subject() {
         let claims = mock_claims("CHARACTER:EVE:123456789", json!(["a", "b"]));
         let character_id = parse_character_id(&claims).expect("valid character id");
-        assert_eq!(character_id, 123456789);
+        assert_eq!(character_id, CharacterId(123456789));
     }
 
     #[test]

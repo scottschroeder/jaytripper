@@ -1,11 +1,11 @@
 use keyring::Entry;
 
-use crate::{EsiResult, types::AuthSession};
+use crate::{EsiResult, auth::AuthSession, ids::CharacterId};
 
 pub trait TokenStore {
-    fn load_session(&self, character_id: u64) -> EsiResult<Option<AuthSession>>;
+    fn load_session(&self, character_id: CharacterId) -> EsiResult<Option<AuthSession>>;
     fn save_session(&self, session: &AuthSession) -> EsiResult<()>;
-    fn clear_session(&self, character_id: u64) -> EsiResult<()>;
+    fn clear_session(&self, character_id: CharacterId) -> EsiResult<()>;
 }
 
 #[derive(Clone, Debug)]
@@ -22,11 +22,11 @@ impl KeyringTokenStore {
         }
     }
 
-    fn account_for_character(&self, character_id: u64) -> String {
+    fn account_for_character(&self, character_id: CharacterId) -> String {
         format!("{}:character:{character_id}", self.account_prefix)
     }
 
-    fn entry_for_character(&self, character_id: u64) -> EsiResult<Entry> {
+    fn entry_for_character(&self, character_id: CharacterId) -> EsiResult<Entry> {
         Ok(Entry::new(
             &self.service,
             &self.account_for_character(character_id),
@@ -35,7 +35,7 @@ impl KeyringTokenStore {
 }
 
 impl TokenStore for KeyringTokenStore {
-    fn load_session(&self, character_id: u64) -> EsiResult<Option<AuthSession>> {
+    fn load_session(&self, character_id: CharacterId) -> EsiResult<Option<AuthSession>> {
         let entry = self.entry_for_character(character_id)?;
         match entry.get_password() {
             Ok(raw) => Ok(Some(serde_json::from_str(&raw)?)),
@@ -51,7 +51,7 @@ impl TokenStore for KeyringTokenStore {
         Ok(())
     }
 
-    fn clear_session(&self, character_id: u64) -> EsiResult<()> {
+    fn clear_session(&self, character_id: CharacterId) -> EsiResult<()> {
         let entry = self.entry_for_character(character_id)?;
         match entry.delete_credential() {
             Ok(()) | Err(keyring::Error::NoEntry) => Ok(()),

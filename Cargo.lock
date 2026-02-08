@@ -916,6 +916,7 @@ version = "0.1.0"
 name = "jaytripper_esi"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "keyring",
  "rfesi",
  "serde",
