@@ -173,9 +173,10 @@ enum ScopeClaim {
 
 #[cfg(test)]
 mod tests {
-    use super::{parse_character_id, parse_scopes};
     use rfesi::prelude::TokenClaims;
     use serde_json::json;
+
+    use super::{parse_character_id, parse_scopes};
 
     #[test]
     fn parses_character_id_from_subject() {
