@@ -7,12 +7,12 @@ FMT_OPTS =
 CURRENT_DIR = $(shell pwd)
 NAME := jaytripper
 
-.PHONY: all pre-commit build_debug clean version fmt fmt-check lint fix test
+.PHONY: all pre-commit build clean version fmt fmt-check lint fix test
 
-all: pre-commit
+all: pre-commit build
 pre-commit: lint fmt-check test
 
-build_debug:
+build:
 	$(CARGO) $(CARGO_OPTS) build
 
 clean:
