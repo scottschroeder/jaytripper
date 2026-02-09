@@ -7,6 +7,7 @@ use std::{
 };
 
 use async_trait::async_trait;
+use jaytripper_core::ids::CharacterId;
 use tokio::{
     sync::{Mutex as AsyncMutex, watch},
     task::JoinHandle,
@@ -18,7 +19,6 @@ use crate::{
     api::CharacterLocation,
     auth::{Clock, NextRefreshDelay},
     client::{EsiApiClient, SsoAuthClient},
-    ids::CharacterId,
     token_store::TokenStore,
 };
 

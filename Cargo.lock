@@ -911,13 +911,19 @@ version = "0.1.0"
 [[package]]
 name = "jaytripper_core"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "serde",
+]
 
 [[package]]
 name = "jaytripper_esi"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "jaytripper_core",
  "keyring",
+ "rand",
  "rfesi",
  "serde",
  "serde_json",

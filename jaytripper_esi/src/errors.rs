@@ -1,6 +1,5 @@
+use jaytripper_core::ids::CharacterId;
 use thiserror::Error;
-
-use crate::ids::CharacterId;
 
 pub type EsiResult<T> = Result<T, EsiError>;
 
@@ -8,8 +7,6 @@ pub type EsiResult<T> = Result<T, EsiError>;
 pub enum EsiError {
     #[error("invalid config: {0}")]
     InvalidConfig(&'static str),
-    #[error("system clock error")]
-    SystemClock(#[from] std::time::SystemTimeError),
     #[error("rfesi operation failed")]
     Rfesi(#[from] rfesi::prelude::EsiError),
     #[error("keyring operation failed")]

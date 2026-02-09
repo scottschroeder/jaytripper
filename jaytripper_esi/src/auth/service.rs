@@ -1,8 +1,10 @@
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+use jaytripper_core::ids::CharacterId;
+
 use super::types::{AuthSession, LoginRequest};
 use crate::{
-    EsiError, EsiResult, client::SsoAuthClient, esi_client::ManagedEsiClient, ids::CharacterId,
+    EsiError, EsiResult, client::SsoAuthClient, esi_client::ManagedEsiClient,
     token_store::TokenStore,
 };
 
@@ -14,16 +16,18 @@ pub enum EnsureSessionResult {
 }
 
 pub trait Clock {
-    fn now_epoch_secs(&self) -> EsiResult<i64>;
+    fn now_epoch_secs(&self) -> i64;
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SystemClock;
 
 impl Clock for SystemClock {
-    fn now_epoch_secs(&self) -> EsiResult<i64> {
-        let now = SystemTime::now().duration_since(UNIX_EPOCH)?;
-        Ok(now.as_secs() as i64)
+    fn now_epoch_secs(&self) -> i64 {
+        match SystemTime::now().duration_since(UNIX_EPOCH) {
+            Ok(now) => now.as_secs() as i64,
+            Err(_) => 0,
+        }
     }
 }
 
@@ -80,7 +84,7 @@ where
         code: &str,
         callback_state: &str,
     ) -> EsiResult<AuthSession> {
-        let now = self.clock.now_epoch_secs()?;
+        let now = self.clock.now_epoch_secs();
         let tokens = self.client.exchange_code(code, callback_state).await?;
 
         let missing_scopes = missing_required_scopes(&tokens.scopes, &self.required_scopes);
@@ -117,7 +121,7 @@ where
         &mut self,
         character_id: CharacterId,
     ) -> EsiResult<EnsureSessionResult> {
-        let now = self.clock.now_epoch_secs()?;
+        let now = self.clock.now_epoch_secs();
         let Some(mut session) = self.store.load_session(character_id)? else {
             return Ok(EnsureSessionResult::Missing);
         };
@@ -187,7 +191,7 @@ where
             });
         }
 
-        let now = self.clock.now_epoch_secs()?;
+        let now = self.clock.now_epoch_secs();
         let refresh_deadline = session.access_expires_at_epoch_secs - self.refresh_skew_secs;
         let seconds_until_deadline = refresh_deadline - now;
         if seconds_until_deadline <= 0 {
@@ -247,13 +251,13 @@ mod tests {
     use std::{collections::HashMap, sync::Mutex};
 
     use async_trait::async_trait;
+    use jaytripper_core::ids::CharacterId;
 
     use super::AuthSession;
     use crate::{
         EsiError, EsiResult,
         auth::{AuthService, Clock, EnsureSessionResult},
         client::{InitialAuthTokens, RefreshTokens, SsoAuthClient},
-        ids::CharacterId,
         token_store::TokenStore,
     };
 
@@ -263,8 +267,8 @@ mod tests {
     }
 
     impl Clock for FixedClock {
-        fn now_epoch_secs(&self) -> EsiResult<i64> {
-            Ok(self.now)
+        fn now_epoch_secs(&self) -> i64 {
+            self.now
         }
     }
 

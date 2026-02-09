@@ -1,6 +1,7 @@
+use jaytripper_core::ids::CharacterId;
 use keyring::Entry;
 
-use crate::{EsiResult, auth::AuthSession, ids::CharacterId};
+use crate::{EsiResult, auth::AuthSession};
 
 pub trait TokenStore {
     fn load_session(&self, character_id: CharacterId) -> EsiResult<Option<AuthSession>>;

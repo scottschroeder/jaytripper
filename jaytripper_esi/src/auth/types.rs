@@ -1,6 +1,5 @@
+use jaytripper_core::ids::CharacterId;
 use serde::{Deserialize, Serialize};
-
-use crate::ids::CharacterId;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LoginRequest {

@@ -1,4 +1,4 @@
-use crate::ids::{SolarSystemId, StationId, StructureId};
+use jaytripper_core::ids::{SolarSystemId, StationId, StructureId};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CharacterLocation {

@@ -1,14 +1,9 @@
 use async_trait::async_trait;
+use jaytripper_core::ids::{CharacterId, SolarSystemId, StationId, StructureId};
 use rfesi::prelude::{Esi, EsiBuilder, PkceVerifier, TokenClaims};
 use serde::Deserialize;
 
-use crate::{
-    EsiError, EsiResult,
-    api::CharacterLocation,
-    auth::LoginRequest,
-    config::EsiConfig,
-    ids::{CharacterId, SolarSystemId, StationId, StructureId},
-};
+use crate::{EsiError, EsiResult, api::CharacterLocation, auth::LoginRequest, config::EsiConfig};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InitialAuthTokens {
@@ -208,11 +203,11 @@ enum ScopeClaim {
 
 #[cfg(test)]
 mod tests {
+    use jaytripper_core::ids::CharacterId;
     use rfesi::prelude::TokenClaims;
     use serde_json::json;
 
     use super::{parse_character_id, parse_scopes};
-    use crate::ids::CharacterId;
 
     #[test]
     fn parses_character_id_from_subject() {
