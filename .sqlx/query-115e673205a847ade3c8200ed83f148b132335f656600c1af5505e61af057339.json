@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO event_log (\n                event_id,\n                event_type,\n                schema_version,\n                stream_key,\n                occurred_at_epoch_millis,\n                recorded_at_epoch_millis,\n                attribution_character_id,\n                source,\n                payload_json\n            )\n            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)\n            RETURNING global_seq\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "global_seq",
+        "ordinal": 0,
+        "type_info": "Integer"
+      }
+    ],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "115e673205a847ade3c8200ed83f148b132335f656600c1af5505e61af057339"
+}

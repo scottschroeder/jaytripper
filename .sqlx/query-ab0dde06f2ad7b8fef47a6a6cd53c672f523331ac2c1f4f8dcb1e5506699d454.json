@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                global_seq AS \"global_seq!\",\n                event_id AS \"event_id!\",\n                event_type AS \"event_type!\",\n                schema_version AS \"schema_version!\",\n                stream_key AS \"stream_key!\",\n                occurred_at_epoch_millis AS \"occurred_at_epoch_millis!\",\n                recorded_at_epoch_millis AS \"recorded_at_epoch_millis!\",\n                attribution_character_id AS \"attribution_character_id?\",\n                source AS \"source!\",\n                payload_json AS \"payload_json!\"\n            FROM event_log\n            WHERE global_seq > ?1\n            ORDER BY global_seq ASC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "global_seq!",
+        "ordinal": 0,
+        "type_info": "Integer"
+      },
+      {
+        "name": "event_id!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "event_type!",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "schema_version!",
+        "ordinal": 3,
+        "type_info": "Integer"
+      },
+      {
+        "name": "stream_key!",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "occurred_at_epoch_millis!",
+        "ordinal": 5,
+        "type_info": "Integer"
+      },
+      {
+        "name": "recorded_at_epoch_millis!",
+        "ordinal": 6,
+        "type_info": "Integer"
+      },
+      {
+        "name": "attribution_character_id?",
+        "ordinal": 7,
+        "type_info": "Integer"
+      },
+      {
+        "name": "source!",
+        "ordinal": 8,
+        "type_info": "Text"
+      },
+      {
+        "name": "payload_json!",
+        "ordinal": 9,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "ab0dde06f2ad7b8fef47a6a6cd53c672f523331ac2c1f4f8dcb1e5506699d454"
+}

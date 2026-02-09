@@ -16,7 +16,7 @@ index/*
 *.json
 
 # sql
-!migrations/*
+!jaytripper_store/migrations/*
 !.sqlx/*
 !schema.sql
 *.db*
