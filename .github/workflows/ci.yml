@@ -41,6 +41,16 @@ jobs:
             - name: Run tests
               run: make test
 
+    sqlx:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+            - uses: ./.github/actions/setup
+            - name: Install sqlx-cli
+              run: cargo install sqlx-cli --no-default-features --features sqlite,rustls
+            - name: Verify sqlx metadata and offline compile
+              run: make sqlx-verify
+
     keyring-integration:
         runs-on: ${{ matrix.os }}
         strategy:
