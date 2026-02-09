@@ -14,6 +14,7 @@ runs:
           run: rustup toolchain install nightly --component rustfmt --profile minimal
 
         - name: Install sqlx-cli
+          shell: bash
           run: cargo install sqlx-cli --no-default-features --features sqlite,rustls
 
         - name: Cache Rust artifacts
