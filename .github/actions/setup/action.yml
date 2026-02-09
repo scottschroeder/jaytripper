@@ -13,10 +13,6 @@ runs:
           shell: bash
           run: rustup toolchain install nightly --component rustfmt --profile minimal
 
-        - name: Install sqlx-cli
-          shell: bash
-          run: cargo install sqlx-cli --no-default-features --features sqlite,rustls
-
         - name: Cache Rust artifacts
           uses: Swatinem/rust-cache@v2
           with:
