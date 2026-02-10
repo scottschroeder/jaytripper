@@ -170,11 +170,7 @@ where
         }
 
         self.record_success(started.elapsed(), observed_at);
-        log::trace!(
-            "poll success for character {} at {}",
-            self.client.character_id(),
-            observed_at.as_epoch_secs()
-        );
+        log::trace!("poll success for character {}", self.client.character_id());
         PollOutcome::Success
     }
 
