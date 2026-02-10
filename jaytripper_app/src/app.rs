@@ -75,6 +75,7 @@ mod tests {
     use jaytripper_core::{
         MovementEvent, MovementEventSink, MovementEventSource,
         ids::{CharacterId, SolarSystemId, StationId},
+        time::Timestamp,
     };
     use jaytripper_esi::{CharacterLocation, EsiClient, EsiError, LocationPollConfig};
     use tempfile::tempdir;
@@ -131,7 +132,7 @@ mod tests {
                 character_id: CharacterId(42),
                 from_system_id: None,
                 to_system_id: SolarSystemId(30000142),
-                observed_at_epoch_secs: 1_700_000_000,
+                observed_at: ts_secs(1_700_000_000),
                 source: MovementEventSource::Esi,
             })
             .await
@@ -141,7 +142,7 @@ mod tests {
                 character_id: CharacterId(42),
                 from_system_id: Some(SolarSystemId(30000142)),
                 to_system_id: SolarSystemId(30002510),
-                observed_at_epoch_secs: 1_700_000_120,
+                observed_at: ts_secs(1_700_000_120),
                 source: MovementEventSource::Esi,
             })
             .await
@@ -173,7 +174,7 @@ mod tests {
                 character_id: CharacterId(1337),
                 from_system_id: None,
                 to_system_id: SolarSystemId(30002053),
-                observed_at_epoch_secs: 1_700_000_777,
+                observed_at: ts_secs(1_700_000_777),
                 source: MovementEventSource::Esi,
             })
             .await
@@ -227,5 +228,9 @@ mod tests {
 
         let snapshot = app.snapshot();
         assert!(snapshot.characters.contains_key(&CharacterId(4242)));
+    }
+
+    fn ts_secs(value: i64) -> Timestamp {
+        Timestamp::from_epoch_secs(value).expect("valid epoch seconds")
     }
 }

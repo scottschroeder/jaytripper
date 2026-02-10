@@ -1,5 +1,8 @@
 use async_trait::async_trait;
-use jaytripper_core::ids::{CharacterId, SolarSystemId, StationId, StructureId};
+use jaytripper_core::{
+    ids::{CharacterId, SolarSystemId, StationId, StructureId},
+    time::Timestamp,
+};
 use rfesi::prelude::{Esi, EsiBuilder, PkceVerifier, TokenClaims};
 use serde::Deserialize;
 
@@ -11,14 +14,14 @@ pub struct InitialAuthTokens {
     pub character_name: Option<String>,
     pub scopes: Vec<String>,
     pub access_token: String,
-    pub access_expires_at_epoch_secs: i64,
+    pub access_expires_at: Timestamp,
     pub refresh_token: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RefreshTokens {
     pub access_token: String,
-    pub access_expires_at_epoch_secs: i64,
+    pub access_expires_at: Timestamp,
     pub refresh_token: String,
 }
 
@@ -28,7 +31,7 @@ pub trait SsoAuthClient {
     fn hydrate_session_tokens(
         &mut self,
         access_token: &str,
-        access_expires_at_epoch_secs: i64,
+        access_expires_at: Timestamp,
         refresh_token: &str,
     ) -> EsiResult<()>;
     async fn exchange_code(
@@ -80,12 +83,12 @@ impl RfesiSsoClient {
         Ok(Self { esi, pending: None })
     }
 
-    fn read_access_expiry_secs(&self) -> EsiResult<i64> {
+    fn read_access_expiry(&self) -> EsiResult<Timestamp> {
         let expiry_ms = self
             .esi
             .access_expiration
             .ok_or(EsiError::MissingAccessExpiration)?;
-        Ok(expiry_ms / 1_000)
+        Timestamp::from_epoch_millis(expiry_ms).ok_or(EsiError::InvalidAccessExpiration(expiry_ms))
     }
 
     fn read_access_token(&self) -> EsiResult<String> {
@@ -132,15 +135,11 @@ impl SsoAuthClient for RfesiSsoClient {
     fn hydrate_session_tokens(
         &mut self,
         access_token: &str,
-        access_expires_at_epoch_secs: i64,
+        access_expires_at: Timestamp,
         refresh_token: &str,
     ) -> EsiResult<()> {
-        let access_expiration_millis = access_expires_at_epoch_secs
-            .checked_mul(1_000)
-            .ok_or_else(|| EsiError::message("access token expiration overflow"))?;
-
         self.esi.access_token = Some(access_token.to_owned());
-        self.esi.access_expiration = Some(access_expiration_millis);
+        self.esi.access_expiration = Some(access_expires_at.as_epoch_millis());
         self.esi.refresh_token = Some(refresh_token.to_owned());
         Ok(())
     }
@@ -173,7 +172,7 @@ impl SsoAuthClient for RfesiSsoClient {
             character_name: Some(claims.name),
             scopes,
             access_token: self.read_access_token()?,
-            access_expires_at_epoch_secs: self.read_access_expiry_secs()?,
+            access_expires_at: self.read_access_expiry()?,
             refresh_token: self.read_refresh_token()?,
         })
     }
@@ -183,7 +182,7 @@ impl SsoAuthClient for RfesiSsoClient {
 
         Ok(RefreshTokens {
             access_token: self.read_access_token()?,
-            access_expires_at_epoch_secs: self.read_access_expiry_secs()?,
+            access_expires_at: self.read_access_expiry()?,
             refresh_token: self.read_refresh_token()?,
         })
     }

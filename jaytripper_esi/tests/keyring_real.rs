@@ -1,5 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use jaytripper_core::time::Timestamp;
 use jaytripper_esi::{AuthSession, CharacterId, KeyringTokenStore, TokenStore};
 
 const TEST_SERVICE: &str = "jaytripper-keyring-integration-tests";
@@ -31,9 +32,9 @@ fn keyring_round_trip_save_load_clear() {
             "esi-location.read_location.v1".to_string(),
         ],
         access_token: "access-token-test".to_string(),
-        access_expires_at_epoch_secs: 2_000_000_000,
+        access_expires_at: ts(2_000_000_000),
         refresh_token: "refresh-token-test".to_string(),
-        updated_at_epoch_secs: 1_900_000_000,
+        updated_at: ts(1_900_000_000),
     };
 
     store
@@ -45,9 +46,9 @@ fn keyring_round_trip_save_load_clear() {
         character_name: Some("Second Pilot".to_string()),
         scopes: vec!["publicData".to_string()],
         access_token: "second-access-token-test".to_string(),
-        access_expires_at_epoch_secs: 2_100_000_000,
+        access_expires_at: ts(2_100_000_000),
         refresh_token: "second-refresh-token-test".to_string(),
-        updated_at_epoch_secs: 1_950_000_000,
+        updated_at: ts(1_950_000_000),
     };
 
     store
@@ -81,4 +82,8 @@ fn keyring_round_trip_save_load_clear() {
     store
         .clear_session(CharacterId(987_654_321))
         .expect("clearing second session in keyring should succeed");
+}
+
+fn ts(epoch_secs: i64) -> Timestamp {
+    Timestamp::from_epoch_secs(epoch_secs).expect("valid epoch seconds")
 }

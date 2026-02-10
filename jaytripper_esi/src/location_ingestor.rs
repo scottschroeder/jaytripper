@@ -1,6 +1,9 @@
 use std::time::{Duration, Instant};
 
-use jaytripper_core::events::{MovementEvent, MovementEventSink, MovementEventSource};
+use jaytripper_core::{
+    events::{MovementEvent, MovementEventSink, MovementEventSource},
+    time::Timestamp,
+};
 use rand::{Rng, SeedableRng, rngs::SmallRng};
 use tokio::{sync::watch, time::sleep};
 
@@ -32,7 +35,7 @@ impl Default for LocationPollConfig {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct PollMetrics {
-    pub last_success_at_epoch_secs: Option<i64>,
+    pub last_success_at: Option<Timestamp>,
     pub last_poll_latency: Option<Duration>,
 }
 
@@ -160,7 +163,7 @@ where
             Err(outcome) => return outcome,
         };
 
-        let observed_at = self.clock.now_epoch_secs();
+        let observed_at = self.clock.now();
 
         if let Err(outcome) = self.observe_location(location, observed_at).await {
             return outcome;
@@ -170,7 +173,7 @@ where
         log::trace!(
             "poll success for character {} at {}",
             self.client.character_id(),
-            observed_at
+            observed_at.as_epoch_secs()
         );
         PollOutcome::Success
     }
@@ -207,7 +210,7 @@ where
     async fn observe_location(
         &mut self,
         location: CharacterLocation,
-        observed_at_epoch_secs: i64,
+        observed_at: Timestamp,
     ) -> Result<(), PollOutcome> {
         let should_emit_event = self
             .last_location
@@ -223,7 +226,7 @@ where
                     .as_ref()
                     .map(|previous| previous.solar_system_id),
                 to_system_id: location.solar_system_id,
-                observed_at_epoch_secs,
+                observed_at,
                 source: MovementEventSource::Esi,
             };
 
@@ -243,9 +246,9 @@ where
         Ok(())
     }
 
-    fn record_success(&mut self, latency: Duration, observed_at_epoch_secs: i64) {
+    fn record_success(&mut self, latency: Duration, observed_at: Timestamp) {
         self.api_consecutive_failures = 0;
-        self.metrics.last_success_at_epoch_secs = Some(observed_at_epoch_secs);
+        self.metrics.last_success_at = Some(observed_at);
         self.metrics.last_poll_latency = Some(latency);
     }
 
@@ -312,6 +315,7 @@ mod tests {
     use jaytripper_core::{
         MovementEvent, MovementEventSink, MovementEventSource,
         ids::{CharacterId, SolarSystemId, StationId},
+        time::Timestamp,
     };
     use tokio::sync::watch;
 
@@ -320,11 +324,11 @@ mod tests {
 
     #[derive(Clone, Copy)]
     struct FixedClock {
-        now: i64,
+        now: Timestamp,
     }
 
     impl Clock for FixedClock {
-        fn now_epoch_secs(&self) -> i64 {
+        fn now(&self) -> Timestamp {
             self.now
         }
     }
@@ -416,7 +420,9 @@ mod tests {
             client,
             SharedRecordingSink(Arc::clone(&sink)),
             config_for_tests(),
-            FixedClock { now: 1_700_000_000 },
+            FixedClock {
+                now: ts(1_700_000_000),
+            },
         );
 
         assert!(matches!(ingestor.poll_once().await, PollOutcome::Success));
@@ -428,7 +434,7 @@ mod tests {
         assert_eq!(events[0].character_id, CharacterId(42));
         assert_eq!(events[0].from_system_id, None);
         assert_eq!(events[0].to_system_id, SolarSystemId(30000142));
-        assert_eq!(events[0].observed_at_epoch_secs, 1_700_000_000);
+        assert_eq!(events[0].observed_at, ts(1_700_000_000));
         assert_eq!(events[0].source, MovementEventSource::Esi);
         assert_eq!(events[1].from_system_id, Some(SolarSystemId(30000142)));
         assert_eq!(events[1].to_system_id, SolarSystemId(30002510));
@@ -447,7 +453,9 @@ mod tests {
             client,
             SharedRecordingSink(Arc::clone(&sink)),
             config_for_tests(),
-            FixedClock { now: 1_700_000_001 },
+            FixedClock {
+                now: ts(1_700_000_001),
+            },
         );
 
         let outcome = ingestor.poll_once().await;
@@ -468,7 +476,9 @@ mod tests {
             client,
             SharedRecordingSink(Arc::clone(&sink)),
             config_for_tests(),
-            FixedClock { now: 1_700_000_001 },
+            FixedClock {
+                now: ts(1_700_000_001),
+            },
         );
 
         assert!(matches!(
@@ -490,12 +500,14 @@ mod tests {
             client,
             SharedRecordingSink(Arc::clone(&sink)),
             config_for_tests(),
-            FixedClock { now: 1_700_000_100 },
+            FixedClock {
+                now: ts(1_700_000_100),
+            },
         );
 
         assert!(matches!(ingestor.poll_once().await, PollOutcome::Success));
         let metrics = ingestor.metrics();
-        assert_eq!(metrics.last_success_at_epoch_secs, Some(1_700_000_100));
+        assert_eq!(metrics.last_success_at, Some(ts(1_700_000_100)));
         assert!(metrics.last_poll_latency.is_some());
     }
 
@@ -510,7 +522,9 @@ mod tests {
             client,
             SharedRecordingSink(Arc::clone(&sink)),
             config_for_tests(),
-            FixedClock { now: 1_700_000_200 },
+            FixedClock {
+                now: ts(1_700_000_200),
+            },
         );
         let (shutdown_tx, shutdown_rx) = watch::channel(true);
         drop(shutdown_tx);
@@ -519,5 +533,9 @@ mod tests {
             .run_until_shutdown(shutdown_rx)
             .await
             .expect("shutdown path should succeed");
+    }
+
+    fn ts(epoch_secs: i64) -> Timestamp {
+        Timestamp::from_epoch_secs(epoch_secs).expect("valid epoch seconds")
     }
 }

@@ -25,6 +25,8 @@ pub enum EsiError {
     MissingAccessToken,
     #[error("esi did not provide access token expiration")]
     MissingAccessExpiration,
+    #[error("esi provided invalid access token expiration epoch millis: {0}")]
+    InvalidAccessExpiration(i64),
     #[error("esi did not provide a refresh token")]
     MissingRefreshToken,
     #[error("invalid token subject format: {0}")]

@@ -1,14 +1,10 @@
-use std::{
-    path::Path,
-    str::FromStr,
-    time::{Duration, SystemTime, UNIX_EPOCH},
-};
+use std::{path::Path, str::FromStr, time::Duration};
 
 use async_trait::async_trait;
 use futures_util::TryStreamExt;
 use jaytripper_core::{
     CHARACTER_MOVED_EVENT_TYPE, CHARACTER_MOVED_SCHEMA_VERSION, MovementEvent, MovementEventSink,
-    MovementEventSource, character_stream_key, ids::CharacterId,
+    MovementEventSource, Timestamp, character_stream_key, ids::CharacterId,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{
@@ -58,8 +54,8 @@ pub struct EventEnvelope {
     pub event_type: String,
     pub schema_version: i64,
     pub stream_key: String,
-    pub occurred_at_epoch_millis: i64,
-    pub recorded_at_epoch_millis: i64,
+    pub occurred_at: Timestamp,
+    pub recorded_at: Timestamp,
     pub attribution_character_id: Option<CharacterId>,
     pub source: EventSource,
     pub payload_json: String,
@@ -108,6 +104,8 @@ impl EventLogStore {
         let event_type = &event.event_type;
         let stream_key = &event.stream_key;
         let payload_json = &event.payload_json;
+        let occurred_at_epoch_millis = event.occurred_at.as_epoch_millis();
+        let recorded_at_epoch_millis = event.recorded_at.as_epoch_millis();
 
         let inserted = sqlx::query!(
             r#"
@@ -129,8 +127,8 @@ impl EventLogStore {
             event_type,
             event.schema_version,
             stream_key,
-            event.occurred_at_epoch_millis,
-            event.recorded_at_epoch_millis,
+            occurred_at_epoch_millis,
+            recorded_at_epoch_millis,
             attribution_character_id,
             source,
             payload_json,
@@ -142,27 +140,21 @@ impl EventLogStore {
     }
 
     pub async fn append_movement_event(&self, event: &MovementEvent) -> Result<i64, StoreError> {
-        self.append_movement_event_at(event, current_epoch_millis()?)
-            .await
+        self.append_movement_event_at(event, Timestamp::now()).await
     }
 
     pub async fn append_movement_event_at(
         &self,
         event: &MovementEvent,
-        recorded_at_epoch_millis: i64,
+        recorded_at: Timestamp,
     ) -> Result<i64, StoreError> {
-        let observed_at_epoch_millis = event
-            .observed_at_epoch_secs
-            .checked_mul(1_000)
-            .ok_or(StoreError::TimestampOverflow(event.observed_at_epoch_secs))?;
-
         let new_event = NewEvent {
             event_id: uuid::Uuid::now_v7().to_string(),
             event_type: CHARACTER_MOVED_EVENT_TYPE.to_owned(),
             schema_version: CHARACTER_MOVED_SCHEMA_VERSION,
             stream_key: character_stream_key(event.character_id),
-            occurred_at_epoch_millis: observed_at_epoch_millis,
-            recorded_at_epoch_millis,
+            occurred_at: event.observed_at,
+            recorded_at,
             attribution_character_id: Some(event.character_id),
             source: map_movement_source(event.source),
             payload_json: serde_json::to_string(&event.as_character_moved_payload())?,
@@ -310,8 +302,12 @@ impl TryFrom<DbEventRecord> for EventRecord {
                 event_type: value.event_type,
                 schema_version: value.schema_version,
                 stream_key: value.stream_key,
-                occurred_at_epoch_millis: value.occurred_at_epoch_millis,
-                recorded_at_epoch_millis: value.recorded_at_epoch_millis,
+                occurred_at: Timestamp::from_epoch_millis(value.occurred_at_epoch_millis).ok_or(
+                    StoreError::InvalidEpochMillis(value.occurred_at_epoch_millis),
+                )?,
+                recorded_at: Timestamp::from_epoch_millis(value.recorded_at_epoch_millis).ok_or(
+                    StoreError::InvalidEpochMillis(value.recorded_at_epoch_millis),
+                )?,
                 attribution_character_id,
                 source: EventSource::from_str(&value.source)?,
                 payload_json: value.payload_json,
@@ -335,18 +331,11 @@ fn map_movement_source(source: MovementEventSource) -> EventSource {
     }
 }
 
-fn current_epoch_millis() -> Result<i64, StoreError> {
-    let duration = SystemTime::now().duration_since(UNIX_EPOCH)?;
-    let millis =
-        i64::try_from(duration.as_millis()).map_err(|_| StoreError::TimestampOverflow(i64::MAX))?;
-    Ok(millis)
-}
-
 #[cfg(test)]
 mod tests {
     use jaytripper_core::{
         CHARACTER_MOVED_EVENT_TYPE, CHARACTER_MOVED_SCHEMA_VERSION, MovementEvent,
-        MovementEventSource,
+        MovementEventSource, Timestamp,
         ids::{CharacterId, SolarSystemId},
     };
     use tempfile::tempdir;
@@ -368,8 +357,8 @@ mod tests {
                 event_type: "character_moved".to_owned(),
                 schema_version: 1,
                 stream_key: "character:42".to_owned(),
-                occurred_at_epoch_millis: 1_700_000_000_123,
-                recorded_at_epoch_millis: 1_700_000_005_123,
+                occurred_at: ts_millis(1_700_000_000_123),
+                recorded_at: ts_millis(1_700_000_005_123),
                 attribution_character_id: Some(CharacterId(42)),
                 source: EventSource::Esi,
                 payload_json: "{\"to_system_id\":30000142}".to_owned(),
@@ -383,8 +372,8 @@ mod tests {
                 event_type: "character_moved".to_owned(),
                 schema_version: 1,
                 stream_key: "character:42".to_owned(),
-                occurred_at_epoch_millis: 1_700_000_100_456,
-                recorded_at_epoch_millis: 1_700_000_101_456,
+                occurred_at: ts_millis(1_700_000_100_456),
+                recorded_at: ts_millis(1_700_000_101_456),
                 attribution_character_id: Some(CharacterId(42)),
                 source: EventSource::Manual,
                 payload_json: "{\"from_system_id\":30000142,\"to_system_id\":30002510}".to_owned(),
@@ -449,10 +438,10 @@ mod tests {
                     character_id: CharacterId(42),
                     from_system_id: Some(SolarSystemId(30000142)),
                     to_system_id: SolarSystemId(30002510),
-                    observed_at_epoch_secs: 1_700_000_000,
+                    observed_at: ts_secs(1_700_000_000),
                     source: MovementEventSource::Esi,
                 },
-                1_700_000_000_999,
+                ts_millis(1_700_000_000_999),
             )
             .await
             .expect("append movement event");
@@ -467,8 +456,16 @@ mod tests {
         assert_eq!(events[0].envelope.stream_key, "character:42");
         assert_eq!(events[0].envelope.source, EventSource::Esi);
         assert_eq!(
-            events[0].envelope.recorded_at_epoch_millis,
+            events[0].envelope.recorded_at.as_epoch_millis(),
             1_700_000_000_999
         );
+    }
+
+    fn ts_secs(value: i64) -> Timestamp {
+        Timestamp::from_epoch_secs(value).expect("valid epoch seconds")
+    }
+
+    fn ts_millis(value: i64) -> Timestamp {
+        Timestamp::from_epoch_millis(value).expect("valid epoch milliseconds")
     }
 }

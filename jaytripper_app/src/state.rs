@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use jaytripper_core::{
-    CHARACTER_MOVED_EVENT_TYPE, CHARACTER_MOVED_SCHEMA_VERSION, CharacterMovedPayload,
+    CHARACTER_MOVED_EVENT_TYPE, CHARACTER_MOVED_SCHEMA_VERSION, CharacterMovedPayload, Timestamp,
     ids::{CharacterId, SolarSystemId},
 };
 use jaytripper_store::EventRecord;
@@ -11,7 +11,7 @@ use crate::AppError;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CharacterStatus {
     pub current_system_id: SolarSystemId,
-    pub last_movement_observed_at_epoch_millis: i64,
+    pub last_movement_observed_at: Timestamp,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -51,7 +51,7 @@ pub(crate) fn apply_record(
         character_id,
         CharacterStatus {
             current_system_id: payload.to_system_id,
-            last_movement_observed_at_epoch_millis: envelope.occurred_at_epoch_millis,
+            last_movement_observed_at: envelope.occurred_at,
         },
     );
     snapshot.last_applied_global_seq = Some(record.global_seq);

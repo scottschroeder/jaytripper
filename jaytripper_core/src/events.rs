@@ -1,7 +1,10 @@
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use crate::ids::{CharacterId, SolarSystemId};
+use crate::{
+    ids::{CharacterId, SolarSystemId},
+    time::Timestamp,
+};
 
 pub const CHARACTER_MOVED_EVENT_TYPE: &str = "character_moved";
 pub const CHARACTER_MOVED_SCHEMA_VERSION: i64 = 1;
@@ -26,7 +29,7 @@ pub struct MovementEvent {
     pub character_id: CharacterId,
     pub from_system_id: Option<SolarSystemId>,
     pub to_system_id: SolarSystemId,
-    pub observed_at_epoch_secs: i64,
+    pub observed_at: Timestamp,
     pub source: MovementEventSource,
 }
 

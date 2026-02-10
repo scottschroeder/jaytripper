@@ -39,7 +39,15 @@ impl TokenStore for KeyringTokenStore {
     fn load_session(&self, character_id: CharacterId) -> EsiResult<Option<AuthSession>> {
         let entry = self.entry_for_character(character_id)?;
         match entry.get_password() {
-            Ok(raw) => Ok(Some(serde_json::from_str(&raw)?)),
+            Ok(raw) => match serde_json::from_str(&raw) {
+                Ok(session) => Ok(Some(session)),
+                Err(err) => {
+                    log::error!(
+                        "failed to deserialize keyring session for character {character_id}: {err}"
+                    );
+                    Ok(None)
+                }
+            },
             Err(keyring::Error::NoEntry) => Ok(None),
             Err(err) => Err(err.into()),
         }

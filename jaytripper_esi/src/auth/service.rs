@@ -1,6 +1,6 @@
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
-use jaytripper_core::ids::CharacterId;
+use jaytripper_core::{ids::CharacterId, time::Timestamp};
 
 use super::types::{AuthSession, LoginRequest};
 use crate::{
@@ -16,18 +16,15 @@ pub enum EnsureSessionResult {
 }
 
 pub trait Clock {
-    fn now_epoch_secs(&self) -> i64;
+    fn now(&self) -> Timestamp;
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct SystemClock;
 
 impl Clock for SystemClock {
-    fn now_epoch_secs(&self) -> i64 {
-        match SystemTime::now().duration_since(UNIX_EPOCH) {
-            Ok(now) => now.as_secs() as i64,
-            Err(_) => 0,
-        }
+    fn now(&self) -> Timestamp {
+        Timestamp::now()
     }
 }
 
@@ -41,7 +38,7 @@ where
     store: S,
     required_scopes: Vec<String>,
     clock: T,
-    refresh_skew_secs: i64,
+    refresh_skew: Duration,
 }
 
 impl<C, S> AuthService<C, S, SystemClock>
@@ -66,12 +63,12 @@ where
             store,
             required_scopes,
             clock,
-            refresh_skew_secs: 60,
+            refresh_skew: Duration::from_secs(60),
         }
     }
 
-    pub fn with_refresh_skew_secs(mut self, refresh_skew_secs: i64) -> Self {
-        self.refresh_skew_secs = refresh_skew_secs;
+    pub fn with_refresh_skew(mut self, refresh_skew: Duration) -> Self {
+        self.refresh_skew = refresh_skew;
         self
     }
 
@@ -84,7 +81,7 @@ where
         code: &str,
         callback_state: &str,
     ) -> EsiResult<AuthSession> {
-        let now = self.clock.now_epoch_secs();
+        let now = self.clock.now();
         let tokens = self.client.exchange_code(code, callback_state).await?;
 
         let missing_scopes = missing_required_scopes(&tokens.scopes, &self.required_scopes);
@@ -100,9 +97,9 @@ where
             character_name: tokens.character_name,
             scopes: tokens.scopes,
             access_token: tokens.access_token,
-            access_expires_at_epoch_secs: tokens.access_expires_at_epoch_secs,
+            access_expires_at: tokens.access_expires_at,
             refresh_token: tokens.refresh_token,
-            updated_at_epoch_secs: now,
+            updated_at: now,
         };
 
         self.persist_and_hydrate_session(&session)?;
@@ -121,7 +118,7 @@ where
         &mut self,
         character_id: CharacterId,
     ) -> EsiResult<EnsureSessionResult> {
-        let now = self.clock.now_epoch_secs();
+        let now = self.clock.now();
         let Some(mut session) = self.store.load_session(character_id)? else {
             return Ok(EnsureSessionResult::Missing);
         };
@@ -137,7 +134,7 @@ where
             });
         }
 
-        if !session.should_refresh(now, self.refresh_skew_secs) {
+        if !session.should_refresh(now, self.refresh_skew) {
             self.hydrate_session(&session)?;
             return Ok(EnsureSessionResult::Ready(session));
         }
@@ -145,9 +142,9 @@ where
         match self.client.refresh(&session.refresh_token).await {
             Ok(tokens) => {
                 session.access_token = tokens.access_token;
-                session.access_expires_at_epoch_secs = tokens.access_expires_at_epoch_secs;
+                session.access_expires_at = tokens.access_expires_at;
                 session.refresh_token = tokens.refresh_token;
-                session.updated_at_epoch_secs = now;
+                session.updated_at = now;
 
                 let missing_scopes =
                     missing_required_scopes(&session.scopes, &self.required_scopes);
@@ -192,21 +189,30 @@ where
             });
         }
 
-        let now = self.clock.now_epoch_secs();
-        let refresh_deadline = session.access_expires_at_epoch_secs - self.refresh_skew_secs;
-        let seconds_until_deadline = refresh_deadline - now;
-        if seconds_until_deadline <= 0 {
+        let now = self.clock.now();
+        if session.should_refresh(now, self.refresh_skew) {
             return Ok(NextRefreshDelay::ReadyNow);
         }
 
-        let delay = Duration::from_secs(seconds_until_deadline as u64);
+        let Some(refresh_deadline) = now.checked_add(self.refresh_skew) else {
+            return Ok(NextRefreshDelay::ReadyNow);
+        };
+
+        let Ok(delay) = session
+            .access_expires_at
+            .signed_duration_since(refresh_deadline)
+            .to_std()
+        else {
+            return Ok(NextRefreshDelay::ReadyNow);
+        };
+
         Ok(NextRefreshDelay::Wait(delay.max(floor)))
     }
 
     fn hydrate_session(&mut self, session: &AuthSession) -> EsiResult<()> {
         self.client.hydrate_session_tokens(
             &session.access_token,
-            session.access_expires_at_epoch_secs,
+            session.access_expires_at,
             &session.refresh_token,
         )
     }
@@ -262,10 +268,10 @@ fn missing_required_scopes(granted_scopes: &[String], required_scopes: &[String]
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::HashMap, sync::Mutex};
+    use std::{collections::HashMap, sync::Mutex, time::Duration};
 
     use async_trait::async_trait;
-    use jaytripper_core::ids::CharacterId;
+    use jaytripper_core::{ids::CharacterId, time::Timestamp};
 
     use super::AuthSession;
     use crate::{
@@ -277,11 +283,11 @@ mod tests {
 
     #[derive(Clone, Copy)]
     struct FixedClock {
-        now: i64,
+        now: Timestamp,
     }
 
     impl Clock for FixedClock {
-        fn now_epoch_secs(&self) -> i64 {
+        fn now(&self) -> Timestamp {
             self.now
         }
     }
@@ -333,7 +339,7 @@ mod tests {
         fn hydrate_session_tokens(
             &mut self,
             access_token: &str,
-            _access_expires_at_epoch_secs: i64,
+            _access_expires_at: Timestamp,
             _refresh_token: &str,
         ) -> EsiResult<()> {
             self.hydrated_access_tokens.push(access_token.to_owned());
@@ -357,15 +363,15 @@ mod tests {
         }
     }
 
-    fn sample_session(expires_at: i64) -> AuthSession {
+    fn sample_session(expires_at: Timestamp) -> AuthSession {
         AuthSession {
             character_id: CharacterId(9001),
             character_name: Some("Pilot".to_string()),
             scopes: vec!["esi-location.read_location.v1".to_string()],
             access_token: "access".to_string(),
-            access_expires_at_epoch_secs: expires_at,
+            access_expires_at: expires_at,
             refresh_token: "refresh".to_string(),
-            updated_at_epoch_secs: 100,
+            updated_at: ts(100),
         }
     }
 
@@ -378,7 +384,7 @@ mod tests {
                 character_name: Some("Pilot".to_string()),
                 scopes: vec!["esi-location.read_location.v1".to_string()],
                 access_token: "new-access".to_string(),
-                access_expires_at_epoch_secs: 1000,
+                access_expires_at: ts(1000),
                 refresh_token: "new-refresh".to_string(),
             }),
             refresh_result: None,
@@ -389,7 +395,7 @@ mod tests {
             client,
             store,
             vec!["esi-location.read_location.v1".to_string()],
-            FixedClock { now: 777 },
+            FixedClock { now: ts(777) },
         );
 
         let session = service
@@ -398,7 +404,7 @@ mod tests {
             .expect("complete login should succeed");
 
         assert_eq!(session.character_id, CharacterId(9001));
-        assert_eq!(session.updated_at_epoch_secs, 777);
+        assert_eq!(session.updated_at, ts(777));
         assert_eq!(
             service
                 .load_session(CharacterId(9001))
@@ -417,7 +423,7 @@ mod tests {
                 character_name: Some("Pilot".to_string()),
                 scopes: vec!["publicData".to_string()],
                 access_token: "new-access".to_string(),
-                access_expires_at_epoch_secs: 1000,
+                access_expires_at: ts(1000),
                 refresh_token: "new-refresh".to_string(),
             }),
             refresh_result: None,
@@ -425,13 +431,13 @@ mod tests {
         };
         let store = MemoryStore::default();
         store
-            .save_session(&sample_session(10_000))
+            .save_session(&sample_session(ts(10_000)))
             .expect("save should work");
         let mut service = AuthService::with_clock(
             client,
             store,
             vec!["esi-location.read_location.v1".to_string()],
-            FixedClock { now: 777 },
+            FixedClock { now: ts(777) },
         );
 
         let err = service
@@ -459,15 +465,15 @@ mod tests {
         };
         let store = MemoryStore::default();
         store
-            .save_session(&sample_session(10_000))
+            .save_session(&sample_session(ts(10_000)))
             .expect("save should work");
         let mut service = AuthService::with_clock(
             client,
             store,
             vec!["esi-location.read_location.v1".to_string()],
-            FixedClock { now: 500 },
+            FixedClock { now: ts(500) },
         )
-        .with_refresh_skew_secs(60);
+        .with_refresh_skew(Duration::from_secs(60));
 
         let result = service
             .ensure_valid_session(CharacterId(9001))
@@ -485,22 +491,22 @@ mod tests {
             initial_tokens: None,
             refresh_result: Some(Ok(RefreshTokens {
                 access_token: "refreshed-access".to_string(),
-                access_expires_at_epoch_secs: 10_000,
+                access_expires_at: ts(10_000),
                 refresh_token: "refreshed-refresh".to_string(),
             })),
             hydrated_access_tokens: Vec::new(),
         };
         let store = MemoryStore::default();
         store
-            .save_session(&sample_session(510))
+            .save_session(&sample_session(ts(510)))
             .expect("save should work");
         let mut service = AuthService::with_clock(
             client,
             store,
             vec!["esi-location.read_location.v1".to_string()],
-            FixedClock { now: 500 },
+            FixedClock { now: ts(500) },
         )
-        .with_refresh_skew_secs(60);
+        .with_refresh_skew(Duration::from_secs(60));
 
         let result = service
             .ensure_valid_session(CharacterId(9001))
@@ -528,15 +534,15 @@ mod tests {
         };
         let store = MemoryStore::default();
         store
-            .save_session(&sample_session(510))
+            .save_session(&sample_session(ts(510)))
             .expect("save should work");
         let mut service = AuthService::with_clock(
             client,
             store,
             vec!["esi-location.read_location.v1".to_string()],
-            FixedClock { now: 500 },
+            FixedClock { now: ts(500) },
         )
-        .with_refresh_skew_secs(60);
+        .with_refresh_skew(Duration::from_secs(60));
 
         let result = service
             .ensure_valid_session(CharacterId(9001))
@@ -565,15 +571,15 @@ mod tests {
         };
         let store = MemoryStore::default();
         store
-            .save_session(&sample_session(10_000))
+            .save_session(&sample_session(ts(10_000)))
             .expect("save should work");
         let mut service = AuthService::with_clock(
             client,
             store,
             vec!["esi-location.read_ship_type.v1".to_string()],
-            FixedClock { now: 500 },
+            FixedClock { now: ts(500) },
         )
-        .with_refresh_skew_secs(60);
+        .with_refresh_skew(Duration::from_secs(60));
 
         let result = service
             .ensure_valid_session(CharacterId(9001))
@@ -590,5 +596,9 @@ mod tests {
                 .expect("load should work")
                 .is_none()
         );
+    }
+
+    fn ts(epoch_secs: i64) -> Timestamp {
+        Timestamp::from_epoch_secs(epoch_secs).expect("valid epoch seconds")
     }
 }
