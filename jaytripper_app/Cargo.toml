@@ -4,3 +4,16 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+async-trait = "0.1"
+jaytripper_core = { path = "../jaytripper_core" }
+jaytripper_esi = { path = "../jaytripper_esi" }
+jaytripper_store = { path = "../jaytripper_store" }
+serde_json = "1"
+thiserror = "2"
+tokio = { version = "1", features = ["macros", "rt", "signal", "sync", "time"] }
+
+[dev-dependencies]
+log = "0.4"
+pretty_env_logger = "0.5"
+tempfile = "3"
+url = "2"

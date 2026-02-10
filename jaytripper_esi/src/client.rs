@@ -25,6 +25,12 @@ pub struct RefreshTokens {
 #[async_trait]
 pub trait SsoAuthClient {
     fn begin_login(&mut self) -> EsiResult<LoginRequest>;
+    fn hydrate_session_tokens(
+        &mut self,
+        access_token: &str,
+        access_expires_at_epoch_secs: i64,
+        refresh_token: &str,
+    ) -> EsiResult<()>;
     async fn exchange_code(
         &mut self,
         code: &str,
@@ -35,6 +41,13 @@ pub trait SsoAuthClient {
 
 #[async_trait]
 pub trait EsiApiClient {
+    /// Ensures static API client prerequisites are loaded before endpoint calls.
+    ///
+    /// For the rfesi-backed implementation this currently means the OpenAPI
+    /// spec is loaded so operation-id lookups can resolve endpoint paths.
+    /// Session/token readiness is handled by auth service hydration.
+    async fn ensure_api_ready(&mut self) -> EsiResult<()>;
+
     async fn get_current_location(
         &mut self,
         character_id: CharacterId,
@@ -88,6 +101,16 @@ impl RfesiSsoClient {
             .clone()
             .ok_or(EsiError::MissingRefreshToken)
     }
+
+    async fn ensure_spec_loaded(&mut self) -> EsiResult<()> {
+        if self.esi.get_spec().is_none() {
+            log::debug!("rfesi spec missing; fetching ESI spec");
+            self.esi.update_spec().await?;
+            log::trace!("rfesi spec loaded");
+        }
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -104,6 +127,22 @@ impl SsoAuthClient for RfesiSsoClient {
             authorization_url: auth_info.authorization_url,
             state: auth_info.state,
         })
+    }
+
+    fn hydrate_session_tokens(
+        &mut self,
+        access_token: &str,
+        access_expires_at_epoch_secs: i64,
+        refresh_token: &str,
+    ) -> EsiResult<()> {
+        let access_expiration_millis = access_expires_at_epoch_secs
+            .checked_mul(1_000)
+            .ok_or_else(|| EsiError::message("access token expiration overflow"))?;
+
+        self.esi.access_token = Some(access_token.to_owned());
+        self.esi.access_expiration = Some(access_expiration_millis);
+        self.esi.refresh_token = Some(refresh_token.to_owned());
+        Ok(())
     }
 
     async fn exchange_code(
@@ -152,10 +191,16 @@ impl SsoAuthClient for RfesiSsoClient {
 
 #[async_trait]
 impl EsiApiClient for RfesiSsoClient {
+    async fn ensure_api_ready(&mut self) -> EsiResult<()> {
+        self.ensure_spec_loaded().await
+    }
+
     async fn get_current_location(
         &mut self,
         character_id: CharacterId,
     ) -> EsiResult<CharacterLocation> {
+        self.ensure_spec_loaded().await?;
+
         let character_id = i32::try_from(character_id.0)
             .map_err(|_| EsiError::InvalidCharacterId(character_id))?;
         let location = self.esi.group_location().get_location(character_id).await?;

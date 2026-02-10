@@ -1,3 +1,5 @@
+use std::fmt;
+
 use jaytripper_core::ids::CharacterId;
 use thiserror::Error;
 
@@ -7,7 +9,7 @@ pub type EsiResult<T> = Result<T, EsiError>;
 pub enum EsiError {
     #[error("invalid config: {0}")]
     InvalidConfig(&'static str),
-    #[error("rfesi operation failed")]
+    #[error("esi operation failed")]
     Rfesi(#[from] rfesi::prelude::EsiError),
     #[error("keyring operation failed")]
     Keyring(#[from] keyring::Error),
@@ -19,11 +21,11 @@ pub enum EsiError {
     StateMismatch { expected: String, got: String },
     #[error("token claims are missing from the authentication response")]
     MissingClaims,
-    #[error("rfesi did not provide an access token")]
+    #[error("esi did not provide an access token")]
     MissingAccessToken,
-    #[error("rfesi did not provide access token expiration")]
+    #[error("esi did not provide access token expiration")]
     MissingAccessExpiration,
-    #[error("rfesi did not provide a refresh token")]
+    #[error("esi did not provide a refresh token")]
     MissingRefreshToken,
     #[error("invalid token subject format: {0}")]
     InvalidTokenSubject(String),
@@ -42,5 +44,39 @@ pub enum EsiError {
 impl EsiError {
     pub fn message(msg: impl Into<String>) -> Self {
         Self::Message(msg.into())
+    }
+
+    pub fn display_chain(&self) -> DisplayChainedError<'_> {
+        DisplayChainedError { inner: self }
+    }
+}
+
+pub struct DisplayChainedError<'a> {
+    inner: &'a (dyn std::error::Error + 'static),
+}
+
+impl fmt::Debug for DisplayChainedError<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut first = true;
+        let mut current: Option<&(dyn std::error::Error + 'static)> = Some(self.inner);
+
+        while let Some(err) = current {
+            if first {
+                first = false;
+            } else {
+                write!(f, " -> ")?;
+            }
+
+            write!(f, "{err}")?;
+            current = err.source();
+        }
+
+        Ok(())
+    }
+}
+
+impl fmt::Display for DisplayChainedError<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
     }
 }

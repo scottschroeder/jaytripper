@@ -1,7 +1,15 @@
-use std::{path::Path, str::FromStr, time::Duration};
+use std::{
+    path::Path,
+    str::FromStr,
+    time::{Duration, SystemTime, UNIX_EPOCH},
+};
 
+use async_trait::async_trait;
 use futures_util::TryStreamExt;
-use jaytripper_core::ids::CharacterId;
+use jaytripper_core::{
+    CHARACTER_MOVED_EVENT_TYPE, CHARACTER_MOVED_SCHEMA_VERSION, MovementEvent, MovementEventSink,
+    MovementEventSource, character_stream_key, ids::CharacterId,
+};
 use serde::{Deserialize, Serialize};
 use sqlx::{
     FromRow, SqlitePool,
@@ -133,6 +141,36 @@ impl EventLogStore {
         Ok(inserted.global_seq)
     }
 
+    pub async fn append_movement_event(&self, event: &MovementEvent) -> Result<i64, StoreError> {
+        self.append_movement_event_at(event, current_epoch_millis()?)
+            .await
+    }
+
+    pub async fn append_movement_event_at(
+        &self,
+        event: &MovementEvent,
+        recorded_at_epoch_millis: i64,
+    ) -> Result<i64, StoreError> {
+        let observed_at_epoch_millis = event
+            .observed_at_epoch_secs
+            .checked_mul(1_000)
+            .ok_or(StoreError::TimestampOverflow(event.observed_at_epoch_secs))?;
+
+        let new_event = NewEvent {
+            event_id: uuid::Uuid::now_v7().to_string(),
+            event_type: CHARACTER_MOVED_EVENT_TYPE.to_owned(),
+            schema_version: CHARACTER_MOVED_SCHEMA_VERSION,
+            stream_key: character_stream_key(event.character_id),
+            occurred_at_epoch_millis: observed_at_epoch_millis,
+            recorded_at_epoch_millis,
+            attribution_character_id: Some(event.character_id),
+            source: map_movement_source(event.source),
+            payload_json: serde_json::to_string(&event.as_character_moved_payload())?,
+        };
+
+        self.append_event(&new_event).await
+    }
+
     pub async fn read_ordered_events(&self) -> Result<Vec<EventRecord>, StoreError> {
         let mut rows = sqlx::query_as!(
             DbEventRecord,
@@ -232,6 +270,16 @@ impl EventLogStore {
     }
 }
 
+#[async_trait]
+impl MovementEventSink for EventLogStore {
+    type Error = StoreError;
+
+    async fn emit_movement(&self, event: MovementEvent) -> Result<(), Self::Error> {
+        self.append_movement_event(&event).await?;
+        Ok(())
+    }
+}
+
 #[derive(Debug, FromRow)]
 struct DbEventRecord {
     global_seq: i64,
@@ -281,9 +329,26 @@ fn character_id_from_sqlite(raw: i64) -> Result<CharacterId, StoreError> {
     Ok(CharacterId(value))
 }
 
+fn map_movement_source(source: MovementEventSource) -> EventSource {
+    match source {
+        MovementEventSource::Esi => EventSource::Esi,
+    }
+}
+
+fn current_epoch_millis() -> Result<i64, StoreError> {
+    let duration = SystemTime::now().duration_since(UNIX_EPOCH)?;
+    let millis =
+        i64::try_from(duration.as_millis()).map_err(|_| StoreError::TimestampOverflow(i64::MAX))?;
+    Ok(millis)
+}
+
 #[cfg(test)]
 mod tests {
-    use jaytripper_core::ids::CharacterId;
+    use jaytripper_core::{
+        CHARACTER_MOVED_EVENT_TYPE, CHARACTER_MOVED_SCHEMA_VERSION, MovementEvent,
+        MovementEventSource,
+        ids::{CharacterId, SolarSystemId},
+    };
     use tempfile::tempdir;
 
     use super::{EventLogStore, EventSource, NewEvent};
@@ -367,5 +432,43 @@ mod tests {
             .expect("read ordered after reopen");
 
         assert!(events.is_empty());
+    }
+
+    #[tokio::test]
+    async fn append_movement_event_uses_expected_envelope_shape() {
+        let temp_dir = tempdir().expect("tempdir");
+        let database_path = temp_dir.path().join("events.sqlite");
+
+        let store = EventLogStore::connect(&database_path)
+            .await
+            .expect("connect store");
+
+        store
+            .append_movement_event_at(
+                &MovementEvent {
+                    character_id: CharacterId(42),
+                    from_system_id: Some(SolarSystemId(30000142)),
+                    to_system_id: SolarSystemId(30002510),
+                    observed_at_epoch_secs: 1_700_000_000,
+                    source: MovementEventSource::Esi,
+                },
+                1_700_000_000_999,
+            )
+            .await
+            .expect("append movement event");
+
+        let events = store.read_ordered_events().await.expect("read ordered");
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].envelope.event_type, CHARACTER_MOVED_EVENT_TYPE);
+        assert_eq!(
+            events[0].envelope.schema_version,
+            CHARACTER_MOVED_SCHEMA_VERSION
+        );
+        assert_eq!(events[0].envelope.stream_key, "character:42");
+        assert_eq!(events[0].envelope.source, EventSource::Esi);
+        assert_eq!(
+            events[0].envelope.recorded_at_epoch_millis,
+            1_700_000_000_999
+        );
     }
 }

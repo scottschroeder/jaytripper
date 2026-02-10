@@ -20,3 +20,5 @@ index/*
 !.sqlx/*
 !schema.sql
 *.db*
+*.sqlite-shm
+*.sqlite-wal

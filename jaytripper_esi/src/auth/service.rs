@@ -105,7 +105,7 @@ where
             updated_at_epoch_secs: now,
         };
 
-        self.store.save_session(&session)?;
+        self.persist_and_hydrate_session(&session)?;
         Ok(session)
     }
 
@@ -138,6 +138,7 @@ where
         }
 
         if !session.should_refresh(now, self.refresh_skew_secs) {
+            self.hydrate_session(&session)?;
             return Ok(EnsureSessionResult::Ready(session));
         }
 
@@ -160,7 +161,7 @@ where
                     });
                 }
 
-                self.store.save_session(&session)?;
+                self.persist_and_hydrate_session(&session)?;
                 Ok(EnsureSessionResult::Ready(session))
             }
             Err(err) => Ok(EnsureSessionResult::NeedsReauth {
@@ -200,6 +201,19 @@ where
 
         let delay = Duration::from_secs(seconds_until_deadline as u64);
         Ok(NextRefreshDelay::Wait(delay.max(floor)))
+    }
+
+    fn hydrate_session(&mut self, session: &AuthSession) -> EsiResult<()> {
+        self.client.hydrate_session_tokens(
+            &session.access_token,
+            session.access_expires_at_epoch_secs,
+            &session.refresh_token,
+        )
+    }
+
+    fn persist_and_hydrate_session(&mut self, session: &AuthSession) -> EsiResult<()> {
+        self.hydrate_session(session)?;
+        self.store.save_session(session)
     }
 }
 
@@ -305,6 +319,7 @@ mod tests {
         login_request: Option<crate::auth::LoginRequest>,
         initial_tokens: Option<InitialAuthTokens>,
         refresh_result: Option<EsiResult<RefreshTokens>>,
+        hydrated_access_tokens: Vec<String>,
     }
 
     #[async_trait]
@@ -313,6 +328,16 @@ mod tests {
             self.login_request
                 .clone()
                 .ok_or_else(|| EsiError::message("no login request configured"))
+        }
+
+        fn hydrate_session_tokens(
+            &mut self,
+            access_token: &str,
+            _access_expires_at_epoch_secs: i64,
+            _refresh_token: &str,
+        ) -> EsiResult<()> {
+            self.hydrated_access_tokens.push(access_token.to_owned());
+            Ok(())
         }
 
         async fn exchange_code(
@@ -357,6 +382,7 @@ mod tests {
                 refresh_token: "new-refresh".to_string(),
             }),
             refresh_result: None,
+            hydrated_access_tokens: Vec::new(),
         };
         let store = MemoryStore::default();
         let mut service = AuthService::with_clock(
@@ -379,6 +405,7 @@ mod tests {
                 .expect("load should work"),
             Some(session)
         );
+        assert_eq!(service.client.hydrated_access_tokens, vec!["new-access"]);
     }
 
     #[tokio::test]
@@ -394,6 +421,7 @@ mod tests {
                 refresh_token: "new-refresh".to_string(),
             }),
             refresh_result: None,
+            hydrated_access_tokens: Vec::new(),
         };
         let store = MemoryStore::default();
         store
@@ -418,6 +446,7 @@ mod tests {
                 .expect("load should work")
                 .is_none()
         );
+        assert!(service.client.hydrated_access_tokens.is_empty());
     }
 
     #[tokio::test]
@@ -426,6 +455,7 @@ mod tests {
             login_request: None,
             initial_tokens: None,
             refresh_result: None,
+            hydrated_access_tokens: Vec::new(),
         };
         let store = MemoryStore::default();
         store
@@ -445,6 +475,7 @@ mod tests {
             .expect("ensure should succeed");
 
         assert!(matches!(result, EnsureSessionResult::Ready(_)));
+        assert_eq!(service.client.hydrated_access_tokens, vec!["access"]);
     }
 
     #[tokio::test]
@@ -457,6 +488,7 @@ mod tests {
                 access_expires_at_epoch_secs: 10_000,
                 refresh_token: "refreshed-refresh".to_string(),
             })),
+            hydrated_access_tokens: Vec::new(),
         };
         let store = MemoryStore::default();
         store
@@ -480,6 +512,10 @@ mod tests {
         };
         assert_eq!(session.access_token, "refreshed-access");
         assert_eq!(session.refresh_token, "refreshed-refresh");
+        assert_eq!(
+            service.client.hydrated_access_tokens,
+            vec!["refreshed-access"]
+        );
     }
 
     #[tokio::test]
@@ -488,6 +524,7 @@ mod tests {
             login_request: None,
             initial_tokens: None,
             refresh_result: Some(Err(EsiError::message("refresh token rejected"))),
+            hydrated_access_tokens: Vec::new(),
         };
         let store = MemoryStore::default();
         store
@@ -524,6 +561,7 @@ mod tests {
             login_request: None,
             initial_tokens: None,
             refresh_result: None,
+            hydrated_access_tokens: Vec::new(),
         };
         let store = MemoryStore::default();
         store

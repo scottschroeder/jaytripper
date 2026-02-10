@@ -98,8 +98,16 @@ where
         &mut self,
         mut shutdown_rx: watch::Receiver<bool>,
     ) -> EsiResult<()> {
+        log::debug!(
+            "location ingestor starting for character {}",
+            self.client.character_id()
+        );
         loop {
             if *shutdown_rx.borrow() {
+                log::debug!(
+                    "location ingestor received shutdown before poll for character {}",
+                    self.client.character_id()
+                );
                 return Ok(());
             }
 
@@ -115,7 +123,17 @@ where
 
             let wait = match outcome {
                 PollOutcome::Success => self.next_success_delay(),
-                PollOutcome::ApiFailure => self.next_api_failure_delay(),
+                PollOutcome::ApiFailure(err) => {
+                    let wait = self.next_api_failure_delay();
+                    log::error!(
+                        "poll API failure for character {} (consecutive failures: {}, retry in {:?}): {:?}",
+                        self.client.character_id(),
+                        self.api_consecutive_failures,
+                        wait,
+                        err.display_chain()
+                    );
+                    wait
+                }
                 PollOutcome::Terminal(err) => return Err(err),
             };
 
@@ -131,6 +149,10 @@ where
     }
 
     async fn poll_once(&mut self) -> PollOutcome {
+        log::trace!(
+            "polling current location for character {}",
+            self.client.character_id()
+        );
         let started = Instant::now();
 
         let location = match self.fetch_location().await {
@@ -145,18 +167,39 @@ where
         }
 
         self.record_success(started.elapsed(), observed_at);
+        log::trace!(
+            "poll success for character {} at {}",
+            self.client.character_id(),
+            observed_at
+        );
         PollOutcome::Success
     }
 
     async fn fetch_location(&mut self) -> Result<CharacterLocation, PollOutcome> {
         match self.client.get_current_location().await {
-            Ok(location) => Ok(location),
+            Ok(location) => {
+                log::trace!(
+                    "fetched location for character {} in system {}",
+                    self.client.character_id(),
+                    location.solar_system_id
+                );
+                Ok(location)
+            }
             Err(EsiError::NeedsReauth { reason }) => {
+                log::debug!(
+                    "poll terminal: reauth required for character {} ({reason})",
+                    self.client.character_id()
+                );
                 Err(PollOutcome::Terminal(EsiError::NeedsReauth { reason }))
             }
-            Err(_) => {
+            Err(err) => {
                 self.record_api_failure();
-                Err(PollOutcome::ApiFailure)
+                log::trace!(
+                    "poll API failure for character {} (consecutive failures: {})",
+                    self.client.character_id(),
+                    self.api_consecutive_failures
+                );
+                Err(PollOutcome::ApiFailure(err))
             }
         }
     }
@@ -189,6 +232,11 @@ where
                     "failed to emit movement event: {err}"
                 ))));
             }
+
+            log::debug!(
+                "emitted movement event for character {}",
+                self.client.character_id()
+            );
         }
 
         self.last_location = Some(location);
@@ -248,7 +296,7 @@ fn exponential_backoff(attempts: u32, initial: Duration, max: Duration) -> Durat
 
 enum PollOutcome {
     Success,
-    ApiFailure,
+    ApiFailure(EsiError),
     Terminal(EsiError),
 }
 
@@ -425,7 +473,7 @@ mod tests {
 
         assert!(matches!(
             ingestor.poll_once().await,
-            PollOutcome::ApiFailure
+            PollOutcome::ApiFailure(_)
         ));
         assert_eq!(ingestor.api_consecutive_failures(), 1);
         assert_eq!(ingestor.next_api_failure_delay(), Duration::from_secs(1));

@@ -77,6 +77,8 @@ where
             }
         }
 
+        auth_service.client_mut().ensure_api_ready().await?;
+
         let state = Arc::new(AsyncMutex::new(ManagedState { auth: auth_service }));
         let needs_reauth = Arc::new(AtomicBool::new(false));
         let reauth_reason = Arc::new(Mutex::new(None));

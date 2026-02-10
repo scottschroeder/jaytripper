@@ -14,4 +14,13 @@ pub enum StoreError {
 
     #[error("character id {0} is negative in sqlite record")]
     NegativeCharacterId(i64),
+
+    #[error("timestamp {0} overflows millisecond conversion")]
+    TimestampOverflow(i64),
+
+    #[error("payload serialization failed: {0}")]
+    PayloadSerialization(#[from] serde_json::Error),
+
+    #[error("system clock is before unix epoch: {0}")]
+    Clock(#[from] std::time::SystemTimeError),
 }
