@@ -4,7 +4,9 @@ use async_trait::async_trait;
 use futures_util::TryStreamExt;
 use jaytripper_core::{
     CHARACTER_MOVED_EVENT_TYPE, CHARACTER_MOVED_SCHEMA_VERSION, MovementEvent, MovementEventSink,
-    MovementEventSource, Timestamp, character_stream_key, ids::CharacterId,
+    MovementEventSource, SYSTEM_SIGNATURES_OBSERVED_EVENT_TYPE,
+    SYSTEM_SIGNATURES_OBSERVED_SCHEMA_VERSION, SignatureEventSource, SystemSignaturesObservedEvent,
+    Timestamp, character_stream_key, ids::CharacterId, system_stream_key,
 };
 use serde::{Deserialize, Serialize};
 use sqlx::{
@@ -158,6 +160,34 @@ impl EventLogStore {
             attribution_character_id: Some(event.character_id),
             source: map_movement_source(event.source),
             payload_json: serde_json::to_string(&event.as_character_moved_payload())?,
+        };
+
+        self.append_event(&new_event).await
+    }
+
+    pub async fn append_system_signatures_observed_event(
+        &self,
+        event: &SystemSignaturesObservedEvent,
+    ) -> Result<i64, StoreError> {
+        self.append_system_signatures_observed_event_at(event, Timestamp::now())
+            .await
+    }
+
+    pub async fn append_system_signatures_observed_event_at(
+        &self,
+        event: &SystemSignaturesObservedEvent,
+        recorded_at: Timestamp,
+    ) -> Result<i64, StoreError> {
+        let new_event = NewEvent {
+            event_id: uuid::Uuid::now_v7().to_string(),
+            event_type: SYSTEM_SIGNATURES_OBSERVED_EVENT_TYPE.to_owned(),
+            schema_version: SYSTEM_SIGNATURES_OBSERVED_SCHEMA_VERSION,
+            stream_key: system_stream_key(event.system_id),
+            occurred_at: event.observed_at,
+            recorded_at,
+            attribution_character_id: event.attribution_character_id,
+            source: map_signature_source(event.source),
+            payload_json: serde_json::to_string(&event.as_payload())?,
         };
 
         self.append_event(&new_event).await
@@ -331,11 +361,19 @@ fn map_movement_source(source: MovementEventSource) -> EventSource {
     }
 }
 
+fn map_signature_source(source: SignatureEventSource) -> EventSource {
+    match source {
+        SignatureEventSource::Manual => EventSource::Manual,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use jaytripper_core::{
         CHARACTER_MOVED_EVENT_TYPE, CHARACTER_MOVED_SCHEMA_VERSION, MovementEvent,
-        MovementEventSource, Timestamp,
+        MovementEventSource, SYSTEM_SIGNATURES_OBSERVED_EVENT_TYPE,
+        SYSTEM_SIGNATURES_OBSERVED_SCHEMA_VERSION, SignatureEntry, SignatureEventSource,
+        SystemSignaturesObservedEvent, SystemSignaturesObservedPayload, Timestamp,
         ids::{CharacterId, SolarSystemId},
     };
     use tempfile::tempdir;
@@ -458,6 +496,111 @@ mod tests {
         assert_eq!(
             events[0].envelope.recorded_at.as_epoch_millis(),
             1_700_000_000_999
+        );
+    }
+
+    #[tokio::test]
+    async fn append_signature_event_uses_expected_envelope_shape() {
+        let temp_dir = tempdir().expect("tempdir");
+        let database_path = temp_dir.path().join("events.sqlite");
+
+        let store = EventLogStore::connect(&database_path)
+            .await
+            .expect("connect store");
+
+        let entries = vec![SignatureEntry {
+            signature_id: "CWT-368".to_owned(),
+            group: "Cosmic Signature".to_owned(),
+            site_type: Some("Gas Site".to_owned()),
+            name: None,
+            scan_percent: Some(28.6),
+        }];
+
+        store
+            .append_system_signatures_observed_event_at(
+                &SystemSignaturesObservedEvent {
+                    system_id: SolarSystemId(31000001),
+                    snapshot_id: "snapshot-01".to_owned(),
+                    entries: entries.clone(),
+                    observed_at: ts_secs(1_700_000_300),
+                    attribution_character_id: Some(CharacterId(42)),
+                    source: SignatureEventSource::Manual,
+                },
+                ts_millis(1_700_000_300_999),
+            )
+            .await
+            .expect("append signature event");
+
+        let events = store.read_ordered_events().await.expect("read ordered");
+        assert_eq!(events.len(), 1);
+        assert_eq!(
+            events[0].envelope.event_type,
+            SYSTEM_SIGNATURES_OBSERVED_EVENT_TYPE
+        );
+        assert_eq!(
+            events[0].envelope.schema_version,
+            SYSTEM_SIGNATURES_OBSERVED_SCHEMA_VERSION
+        );
+        assert_eq!(events[0].envelope.stream_key, "system:31000001");
+        assert_eq!(events[0].envelope.source, EventSource::Manual);
+
+        let payload: SystemSignaturesObservedPayload =
+            serde_json::from_str(&events[0].envelope.payload_json).expect("deserialize payload");
+        assert_eq!(payload.system_id, SolarSystemId(31000001));
+        assert_eq!(payload.snapshot_id, "snapshot-01");
+        assert_eq!(payload.entries, entries);
+    }
+
+    #[tokio::test]
+    async fn movement_and_signature_events_coexist_in_ordered_stream() {
+        let temp_dir = tempdir().expect("tempdir");
+        let database_path = temp_dir.path().join("events.sqlite");
+
+        let store = EventLogStore::connect(&database_path)
+            .await
+            .expect("connect store");
+
+        store
+            .append_movement_event_at(
+                &MovementEvent {
+                    character_id: CharacterId(42),
+                    from_system_id: None,
+                    to_system_id: SolarSystemId(30000142),
+                    observed_at: ts_secs(1_700_000_000),
+                    source: MovementEventSource::Esi,
+                },
+                ts_millis(1_700_000_000_500),
+            )
+            .await
+            .expect("append movement event");
+
+        store
+            .append_system_signatures_observed_event_at(
+                &SystemSignaturesObservedEvent {
+                    system_id: SolarSystemId(30000142),
+                    snapshot_id: "snapshot-02".to_owned(),
+                    entries: vec![SignatureEntry {
+                        signature_id: "GJP-344".to_owned(),
+                        group: "Cosmic Signature".to_owned(),
+                        site_type: None,
+                        name: None,
+                        scan_percent: Some(0.9),
+                    }],
+                    observed_at: ts_secs(1_700_000_120),
+                    attribution_character_id: Some(CharacterId(42)),
+                    source: SignatureEventSource::Manual,
+                },
+                ts_millis(1_700_000_120_500),
+            )
+            .await
+            .expect("append signature event");
+
+        let events = store.read_ordered_events().await.expect("read ordered");
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0].envelope.event_type, CHARACTER_MOVED_EVENT_TYPE);
+        assert_eq!(
+            events[1].envelope.event_type,
+            SYSTEM_SIGNATURES_OBSERVED_EVENT_TYPE
         );
     }
 

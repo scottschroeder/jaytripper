@@ -1,0 +1,12 @@
+ALS-650	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	12.07 AU
+CWT-368	Cosmic Signature	Gas Site		13.6%	7.78 AU
+DVA-081	Cosmic Signature	Data Site		74.0%	10.90 AU
+DVQ-434	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	11.28 AU
+GJP-344	Cosmic Signature			0.6%	3.82 AU
+IOC-156	Cosmic Signature	Gas Site		10.7%	7.78 AU
+OJA-224	Cosmic Signature	Data Site	Data Training Site	100.0%	3.67 AU
+OQZ-400	Cosmic Signature	Relic Site		68.1%	10.08 AU
+PMX-850	Cosmic Signature	Gas Site	Gas Training Site	100.0%	9.55 AU
+PUA-046	Cosmic Signature	Relic Site	Relic Training Site	100.0%	12.48 AU
+ZYA-987	Cosmic Signature	Relic Site		73.3%	9.78 AU
+ZZO-660	Cosmic Signature	Data Site		41.0%	4.52 AU

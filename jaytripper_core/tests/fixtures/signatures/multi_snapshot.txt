@@ -1,0 +1,181 @@
+CWT-368	Cosmic Signature			0.0%	17.11 AU
+DVQ-434	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	19.19 AU
+GJP-344	Cosmic Signature			0.0%	10.23 AU
+IJS-066	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	9.11 AU
+IOC-156	Cosmic Signature			0.0%	15.99 AU
+MRS-350	Cosmic Signature			0.0%	12.22 AU
+NMN-400	Cosmic Anomaly	Combat Site	Guristas Refuge	100.0%	16.84 AU
+NUI-090	Cosmic Anomaly	Ore Site	State Managed Asteroid Belt	100.0%	6.83 AU
+OJA-224	Cosmic Signature			0.0%	11.13 AU
+OQZ-400	Cosmic Signature			0.0%	18.32 AU
+PMX-850	Cosmic Signature			0.0%	17.00 AU
+PUA-046	Cosmic Signature			0.0%	20.49 AU
+SKK-578	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	7.61 AU
+UWY-112	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	16.81 AU
+VMJ-105	Cosmic Signature			0.0%	18.06 AU
+VND-825	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	8.83 AU
+ZYA-987	Cosmic Signature			0.0%	17.49 AU
+
+CWT-368	Cosmic Signature	Gas Site		28.6%	21.93 AU
+DVQ-434	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	19.19 AU
+GJP-344	Cosmic Signature			0.9%	7.97 AU
+IJS-066	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	9.11 AU
+IOC-156	Cosmic Signature	Gas Site		27.5%	17.28 AU
+MRS-350	Cosmic Signature	Data Site		36.7%	15.37 AU
+NMN-400	Cosmic Anomaly	Combat Site	Guristas Refuge	100.0%	16.84 AU
+NUI-090	Cosmic Anomaly	Ore Site	State Managed Asteroid Belt	100.0%	6.83 AU
+OJA-224	Cosmic Signature	Data Site		36.7%	13.03 AU
+OQZ-400	Cosmic Signature	Relic Site		31.4%	24.16 AU
+PMX-850	Cosmic Signature	Gas Site		33.5%	19.12 AU
+PUA-046	Cosmic Signature	Relic Site		29.6%	21.35 AU
+SKK-578	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	7.61 AU
+UWY-112	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	16.81 AU
+VMJ-105	Cosmic Signature	Data Site		33.4%	14.43 AU
+VND-825	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	8.83 AU
+ZYA-987	Cosmic Signature	Relic Site		32.8%	16.46 AU
+
+CWT-368	Cosmic Signature	Gas Site		0.0%	21.93 AU
+DVQ-434	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	19.19 AU
+GJP-344	Cosmic Signature			0.0%	7.97 AU
+IJS-066	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	9.11 AU
+IOC-156	Cosmic Signature	Gas Site		0.0%	17.28 AU
+MRS-350	Cosmic Signature	Data Site		0.0%	15.37 AU
+NMN-400	Cosmic Anomaly	Combat Site	Guristas Refuge	100.0%	16.84 AU
+NUI-090	Cosmic Anomaly	Ore Site	State Managed Asteroid Belt	100.0%	6.83 AU
+OJA-224	Cosmic Signature	Data Site		0.0%	13.03 AU
+OQZ-400	Cosmic Signature	Relic Site		0.0%	24.16 AU
+PMX-850	Cosmic Signature	Gas Site		67.7%	15.87 AU
+PUA-046	Cosmic Signature	Relic Site		0.0%	21.35 AU
+SKK-578	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	7.61 AU
+TUY-078	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	2.95 AU
+UWY-112	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	16.81 AU
+VMJ-105	Cosmic Signature	Data Site		0.0%	14.43 AU
+ZYA-987	Cosmic Signature	Relic Site		0.0%	16.46 AU
+
+CWT-368	Cosmic Signature	Gas Site		0.0%	21.93 AU
+DVQ-434	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	19.19 AU
+GJP-344	Cosmic Signature			0.0%	7.97 AU
+IJS-066	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	9.11 AU
+IOC-156	Cosmic Signature	Gas Site		0.0%	17.28 AU
+MRS-350	Cosmic Signature	Data Site		0.0%	15.37 AU
+NMN-400	Cosmic Anomaly	Combat Site	Guristas Refuge	100.0%	16.84 AU
+NUI-090	Cosmic Anomaly	Ore Site	State Managed Asteroid Belt	100.0%	6.83 AU
+OJA-224	Cosmic Signature	Data Site		0.0%	13.03 AU
+OQZ-400	Cosmic Signature	Relic Site		0.0%	24.16 AU
+PMX-850	Cosmic Signature	Gas Site	Gas Training Site	100.0%	16.97 AU
+PUA-046	Cosmic Signature	Relic Site		0.0%	21.35 AU
+SKK-578	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	7.61 AU
+TUY-078	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	2.95 AU
+UWY-112	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	16.81 AU
+VMJ-105	Cosmic Signature	Data Site		0.0%	14.43 AU
+ZYA-987	Cosmic Signature	Relic Site		0.0%	16.46 AU
+
+CWT-368	Cosmic Signature	Gas Site		20.0%	10.00 AU
+DVQ-434	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	19.19 AU
+GJP-344	Cosmic Signature			0.9%	9.16 AU
+IJS-066	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	9.11 AU
+IOC-156	Cosmic Signature	Gas Site		18.6%	13.37 AU
+MRS-350	Cosmic Signature	Data Site		70.5%	11.84 AU
+NMN-400	Cosmic Anomaly	Combat Site	Guristas Refuge	100.0%	16.84 AU
+NUI-090	Cosmic Anomaly	Ore Site	State Managed Asteroid Belt	100.0%	6.83 AU
+OJA-224	Cosmic Signature	Data Site		66.8%	11.50 AU
+OQZ-400	Cosmic Signature	Relic Site		69.5%	17.63 AU
+PMX-850	Cosmic Signature	Gas Site	Gas Training Site	100.0%	16.97 AU
+PUA-046	Cosmic Signature	Relic Site		66.8%	20.12 AU
+SKK-578	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	7.61 AU
+TUY-078	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	2.95 AU
+UWY-112	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	16.81 AU
+VMJ-105	Cosmic Signature	Data Site		70.7%	15.64 AU
+ZYA-987	Cosmic Signature	Relic Site		72.1%	17.18 AU
+
+CWT-368	Cosmic Signature	Gas Site		0.0%	10.00 AU
+DVQ-434	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	19.19 AU
+GJP-344	Cosmic Signature			0.0%	9.16 AU
+IJS-066	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	9.11 AU
+IOC-156	Cosmic Signature	Gas Site		0.0%	13.37 AU
+MRS-350	Cosmic Signature	Data Site	Data Training Site	100.0%	12.27 AU
+NMN-400	Cosmic Anomaly	Combat Site	Guristas Refuge	100.0%	16.84 AU
+NUI-090	Cosmic Anomaly	Ore Site	State Managed Asteroid Belt	100.0%	6.83 AU
+OJA-224	Cosmic Signature	Data Site		0.0%	11.50 AU
+OQZ-400	Cosmic Signature	Relic Site		0.0%	17.63 AU
+PMX-850	Cosmic Signature	Gas Site	Gas Training Site	100.0%	16.97 AU
+PUA-046	Cosmic Signature	Relic Site		0.0%	20.12 AU
+SKK-578	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	7.61 AU
+TUY-078	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	2.95 AU
+UWY-112	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	16.81 AU
+VMJ-105	Cosmic Signature	Data Site		0.0%	15.64 AU
+ZYA-987	Cosmic Signature	Relic Site		0.0%	17.18 AU
+
+ALS-650	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	12.07 AU
+CWT-368	Cosmic Signature	Gas Site		0.0%	7.32 AU
+DVA-081	Cosmic Signature			0.0%	9.87 AU
+DVQ-434	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	11.28 AU
+GJP-344	Cosmic Signature			0.0%	3.68 AU
+IJS-066	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	2.47 AU
+IOC-156	Cosmic Signature	Gas Site		0.0%	9.66 AU
+NMN-400	Cosmic Anomaly	Combat Site	Guristas Refuge	100.0%	8.77 AU
+NUI-090	Cosmic Anomaly	Ore Site	State Managed Asteroid Belt	100.0%	4.09 AU
+OJA-224	Cosmic Signature	Data Site		0.0%	3.61 AU
+OQZ-400	Cosmic Signature	Relic Site		0.0%	9.70 AU
+PMX-850	Cosmic Signature	Gas Site	Gas Training Site	100.0%	9.55 AU
+PUA-046	Cosmic Signature	Relic Site		0.0%	12.47 AU
+SKK-578	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	3.62 AU
+UWY-112	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	8.94 AU
+VMJ-105	Cosmic Signature	Data Site		0.0%	8.03 AU
+ZYA-987	Cosmic Signature	Relic Site		0.0%	9.52 AU
+
+ALS-650	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	12.07 AU
+CWT-368	Cosmic Signature	Gas Site		0.0%	7.32 AU
+DVA-081	Cosmic Signature			0.0%	9.87 AU
+DVQ-434	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	11.28 AU
+GJP-344	Cosmic Signature			0.0%	3.68 AU
+IJS-066	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	2.47 AU
+IOC-156	Cosmic Signature	Gas Site		0.0%	9.66 AU
+NMN-400	Cosmic Anomaly	Combat Site	Guristas Refuge	100.0%	8.77 AU
+NUI-090	Cosmic Anomaly	Ore Site	State Managed Asteroid Belt	100.0%	4.09 AU
+OJA-224	Cosmic Signature	Data Site		0.0%	3.61 AU
+OQZ-400	Cosmic Signature	Relic Site		0.0%	9.70 AU
+PMX-850	Cosmic Signature	Gas Site	Gas Training Site	100.0%	9.55 AU
+PUA-046	Cosmic Signature	Relic Site		0.0%	12.47 AU
+SKK-578	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	3.62 AU
+UWY-112	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	8.94 AU
+VMJ-105	Cosmic Signature	Data Site	Data Training Site	100.0%	8.38 AU
+ZYA-987	Cosmic Signature	Relic Site		0.0%	9.52 AU
+
+ALS-650	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	12.07 AU
+CWT-368	Cosmic Signature	Gas Site		0.0%	7.32 AU
+DVA-081	Cosmic Signature			0.0%	9.87 AU
+DVQ-434	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	11.28 AU
+GJP-344	Cosmic Signature			0.0%	3.68 AU
+IJS-066	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	2.47 AU
+IOC-156	Cosmic Signature	Gas Site		0.0%	9.66 AU
+NMN-400	Cosmic Anomaly	Combat Site	Guristas Refuge	100.0%	8.77 AU
+NUI-090	Cosmic Anomaly	Ore Site	State Managed Asteroid Belt	100.0%	4.09 AU
+OJA-224	Cosmic Signature	Data Site	Data Training Site	100.0%	3.67 AU
+OQZ-400	Cosmic Signature	Relic Site		0.0%	9.70 AU
+PMX-850	Cosmic Signature	Gas Site	Gas Training Site	100.0%	9.55 AU
+PNA-330	Cosmic Anomaly	Combat Site	Guristas Hideaway	100.0%	2.86 AU
+PUA-046	Cosmic Signature	Relic Site		0.0%	12.47 AU
+SKK-578	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	3.62 AU
+UWY-112	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	8.94 AU
+ZYA-987	Cosmic Signature	Relic Site		0.0%	9.52 AU
+ZZO-660	Cosmic Signature			0.0%	7.31 AU
+
+ALS-650	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	12.07 AU
+CWT-368	Cosmic Signature	Gas Site		13.6%	7.78 AU
+DVA-081	Cosmic Signature	Data Site		74.0%	10.90 AU
+DVQ-434	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	11.28 AU
+GJP-344	Cosmic Signature			0.6%	3.82 AU
+IJS-066	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	2.47 AU
+IOC-156	Cosmic Signature	Gas Site		10.7%	7.78 AU
+NMN-400	Cosmic Anomaly	Combat Site	Guristas Refuge	100.0%	8.77 AU
+NUI-090	Cosmic Anomaly	Ore Site	State Managed Asteroid Belt	100.0%	4.09 AU
+OJA-224	Cosmic Signature	Data Site	Data Training Site	100.0%	3.67 AU
+OQZ-400	Cosmic Signature	Relic Site		68.1%	10.08 AU
+PMX-850	Cosmic Signature	Gas Site	Gas Training Site	100.0%	9.55 AU
+PNA-330	Cosmic Anomaly	Combat Site	Guristas Hideaway	100.0%	2.86 AU
+PUA-046	Cosmic Signature	Relic Site	Relic Training Site	100.0%	12.48 AU
+SKK-578	Cosmic Anomaly	Combat Site	Guristas Burrow	100.0%	3.62 AU
+UWY-112	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	8.94 AU
+ZYA-987	Cosmic Signature	Relic Site		73.3%	9.78 AU
+ZZO-660	Cosmic Signature	Data Site		41.0%	4.52 AU

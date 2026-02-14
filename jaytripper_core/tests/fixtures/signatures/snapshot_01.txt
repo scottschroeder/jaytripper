@@ -1,0 +1,11 @@
+CWT-368	Cosmic Signature			0.0%	17.11 AU
+DVQ-434	Cosmic Anomaly	Combat Site	Anomaly Training Site	100.0%	19.19 AU
+GJP-344	Cosmic Signature			0.0%	10.23 AU
+IOC-156	Cosmic Signature			0.0%	15.99 AU
+MRS-350	Cosmic Signature			0.0%	12.22 AU
+OJA-224	Cosmic Signature			0.0%	11.13 AU
+OQZ-400	Cosmic Signature			0.0%	18.32 AU
+PMX-850	Cosmic Signature			0.0%	17.00 AU
+PUA-046	Cosmic Signature			0.0%	20.49 AU
+VMJ-105	Cosmic Signature			0.0%	18.06 AU
+ZYA-987	Cosmic Signature			0.0%	17.49 AU

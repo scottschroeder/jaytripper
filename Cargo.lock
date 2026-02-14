@@ -1290,7 +1290,9 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "chrono",
+ "regex",
  "serde",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
