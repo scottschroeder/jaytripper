@@ -1,5 +1,7 @@
 mod app;
 mod error;
+mod projection_runtime;
+mod signature_resolution;
 mod sink;
 mod state;
 
