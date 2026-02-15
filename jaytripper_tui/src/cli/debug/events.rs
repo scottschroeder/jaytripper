@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use jaytripper_store::EventLogStore;
+use jaytripper_store::{EventLogStore, GlobalSeq};
 
 #[derive(Debug, Args)]
 pub(crate) struct EventsCommand {
@@ -25,7 +25,7 @@ impl EventsCommand {
         let mut records = if let Some(stream_key) = &self.stream {
             store.read_events_by_stream(stream_key).await?
         } else if let Some(since_seq) = self.since {
-            store.read_events_since(since_seq).await?
+            store.read_events_since(GlobalSeq(since_seq)).await?
         } else {
             store.read_ordered_events().await?
         };
@@ -33,7 +33,7 @@ impl EventsCommand {
         if self.stream.is_some()
             && let Some(since_seq) = self.since
         {
-            records.retain(|record| record.global_seq > since_seq);
+            records.retain(|record| record.global_seq > GlobalSeq(since_seq));
         }
 
         let total = records.len();

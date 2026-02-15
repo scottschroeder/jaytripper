@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
-use jaytripper_app::CharacterTrackerApp;
+use jaytripper_app::AppRuntime;
 
 #[derive(Debug, Args)]
 pub(crate) struct StateCommand {
@@ -31,27 +31,19 @@ struct SnapshotCommand {
 
 impl SnapshotCommand {
     async fn run(&self) -> anyhow::Result<()> {
-        let app = CharacterTrackerApp::connect(&self.db).await?;
-        let snapshot = app.snapshot();
+        let app = AppRuntime::connect(&self.db).await?;
+        let mut rows = app.character_locations().await;
+        rows.sort_by_key(|row| row.character_id.0);
 
         println!("DB: {}", self.db.display());
-        println!(
-            "last_applied_global_seq: {}",
-            snapshot
-                .last_applied_global_seq
-                .map(|seq| seq.to_string())
-                .unwrap_or_else(|| "<none>".to_owned())
-        );
-        println!("characters: {}", snapshot.characters.len());
+        println!("characters: {}", rows.len());
 
-        let mut rows: Vec<_> = snapshot.characters.into_iter().collect();
-        rows.sort_by_key(|(character_id, _)| character_id.0);
-        for (character_id, status) in rows {
+        for row in rows {
             println!(
                 "character={} current_system={} observed_at={}",
-                character_id,
-                status.current_system_id,
-                status.last_movement_observed_at.as_epoch_secs(),
+                row.character_id,
+                row.current_system_id,
+                row.last_movement_observed_at.as_epoch_secs(),
             );
         }
 

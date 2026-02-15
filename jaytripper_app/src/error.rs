@@ -9,6 +9,9 @@ pub enum AppError {
     #[error("payload serialization error: {0}")]
     PayloadSerialization(#[from] serde_json::Error),
 
+    #[error("signature parse error: {0}")]
+    SignatureParse(#[from] jaytripper_core::SignatureParseError),
+
     #[error("unsupported schema version {schema_version} for event type '{event_type}'")]
     UnsupportedSchemaVersion {
         event_type: String,
@@ -16,5 +19,8 @@ pub enum AppError {
     },
 
     #[error("missing character attribution for event type '{event_type}' at sequence {global_seq}")]
-    MissingCharacterAttribution { event_type: String, global_seq: i64 },
+    MissingCharacterAttribution {
+        event_type: String,
+        global_seq: jaytripper_store::GlobalSeq,
+    },
 }

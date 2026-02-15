@@ -67,8 +67,17 @@ pub type NewEvent = EventEnvelope;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EventRecord {
-    pub global_seq: i64,
+    pub global_seq: GlobalSeq,
     pub envelope: EventEnvelope,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct GlobalSeq(pub i64);
+
+impl std::fmt::Display for GlobalSeq {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 #[derive(Clone)]
@@ -96,7 +105,7 @@ impl EventLogStore {
         Ok(Self { pool })
     }
 
-    pub async fn append_event(&self, event: &NewEvent) -> Result<i64, StoreError> {
+    pub async fn append_event(&self, event: &NewEvent) -> Result<GlobalSeq, StoreError> {
         let attribution_character_id = event
             .attribution_character_id
             .map(character_id_to_sqlite)
@@ -138,10 +147,13 @@ impl EventLogStore {
         .fetch_one(&self.pool)
         .await?;
 
-        Ok(inserted.global_seq)
+        Ok(GlobalSeq(inserted.global_seq))
     }
 
-    pub async fn append_movement_event(&self, event: &MovementEvent) -> Result<i64, StoreError> {
+    pub async fn append_movement_event(
+        &self,
+        event: &MovementEvent,
+    ) -> Result<GlobalSeq, StoreError> {
         self.append_movement_event_at(event, Timestamp::now()).await
     }
 
@@ -149,7 +161,7 @@ impl EventLogStore {
         &self,
         event: &MovementEvent,
         recorded_at: Timestamp,
-    ) -> Result<i64, StoreError> {
+    ) -> Result<GlobalSeq, StoreError> {
         let new_event = NewEvent {
             event_id: uuid::Uuid::now_v7().to_string(),
             event_type: CHARACTER_MOVED_EVENT_TYPE.to_owned(),
@@ -168,7 +180,7 @@ impl EventLogStore {
     pub async fn append_system_signatures_observed_event(
         &self,
         event: &SystemSignaturesObservedEvent,
-    ) -> Result<i64, StoreError> {
+    ) -> Result<GlobalSeq, StoreError> {
         self.append_system_signatures_observed_event_at(event, Timestamp::now())
             .await
     }
@@ -177,7 +189,7 @@ impl EventLogStore {
         &self,
         event: &SystemSignaturesObservedEvent,
         recorded_at: Timestamp,
-    ) -> Result<i64, StoreError> {
+    ) -> Result<GlobalSeq, StoreError> {
         let new_event = NewEvent {
             event_id: uuid::Uuid::now_v7().to_string(),
             event_type: SYSTEM_SIGNATURES_OBSERVED_EVENT_TYPE.to_owned(),
@@ -222,7 +234,10 @@ impl EventLogStore {
         Ok(records)
     }
 
-    pub async fn read_events_since(&self, since_seq: i64) -> Result<Vec<EventRecord>, StoreError> {
+    pub async fn read_events_since(
+        &self,
+        since_seq: GlobalSeq,
+    ) -> Result<Vec<EventRecord>, StoreError> {
         let mut rows = sqlx::query_as!(
             DbEventRecord,
             r#"
@@ -241,7 +256,7 @@ impl EventLogStore {
             WHERE global_seq > ?1
             ORDER BY global_seq ASC
             "#,
-            since_seq,
+            since_seq.0,
         )
         .fetch(&self.pool);
 
@@ -326,7 +341,7 @@ impl TryFrom<DbEventRecord> for EventRecord {
             .transpose()?;
 
         Ok(Self {
-            global_seq: value.global_seq,
+            global_seq: GlobalSeq(value.global_seq),
             envelope: EventEnvelope {
                 event_id: value.event_id,
                 event_type: value.event_type,

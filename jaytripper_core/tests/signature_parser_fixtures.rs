@@ -1,6 +1,6 @@
 use std::{fs, path::PathBuf};
 
-use jaytripper_core::{parse_signature_snapshot, SignatureParseError};
+use jaytripper_core::{SignatureParseError, parse_signature_snapshot};
 
 fn fixture_path(name: &str) -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))

@@ -1,7 +1,7 @@
 use std::{path::PathBuf, time::Instant};
 
 use clap::{Args, Subcommand};
-use jaytripper_app::CharacterTrackerApp;
+use jaytripper_app::AppRuntime;
 use jaytripper_esi::LocationPollConfig;
 use tokio::{sync::watch, time::Duration};
 
@@ -44,7 +44,7 @@ impl RunCommand {
         println!("Tracking character {character_id}.");
         println!("Persisting events to {}", self.db.display());
 
-        let app = CharacterTrackerApp::connect(&self.db).await?;
+        let app = AppRuntime::connect(&self.db).await?;
         let auth = build_auth_service(&config)?;
         let esi_client = auth.connect_character(character_id).await?;
 
@@ -86,11 +86,10 @@ impl RunCommand {
                     break;
                 }
                 _ = tokio::time::sleep(Duration::from_millis(500)) => {
-                    let snapshot = app.snapshot();
-                    if let Some(status) = snapshot.characters.get(&character_id) {
-                        if last_system != Some(status.current_system_id) {
-                            last_system = Some(status.current_system_id);
-                            println!("character {character_id} -> system {}", status.current_system_id);
+                    if let Some(current_system_id) = app.character_current_system(character_id).await {
+                        if last_system != Some(current_system_id) {
+                            last_system = Some(current_system_id);
+                            println!("character {character_id} -> system {}", current_system_id);
                         }
                         last_wait_log = Instant::now();
                     } else if last_wait_log.elapsed() >= Duration::from_secs(5) {

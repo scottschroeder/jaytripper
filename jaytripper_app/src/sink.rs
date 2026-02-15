@@ -1,38 +1,25 @@
-use std::sync::{Arc, Mutex};
-
 use async_trait::async_trait;
 use jaytripper_core::{MovementEvent, MovementEventSink};
-use jaytripper_store::EventLogStore;
 
-use crate::{AppError, CharacterTrackerSnapshot, state::apply_record};
+use crate::{AppError, app::AppRuntime};
 
 #[derive(Clone)]
-pub struct StoreAndStateMovementSink {
-    pub(crate) store: EventLogStore,
-    pub(crate) state: Arc<Mutex<CharacterTrackerSnapshot>>,
+pub(crate) struct AppMovementSink {
+    app: AppRuntime,
+}
+
+impl AppMovementSink {
+    pub(crate) fn new(app: AppRuntime) -> Self {
+        Self { app }
+    }
 }
 
 #[async_trait]
-impl MovementEventSink for StoreAndStateMovementSink {
+impl MovementEventSink for AppMovementSink {
     type Error = AppError;
 
     async fn emit_movement(&self, event: MovementEvent) -> Result<(), Self::Error> {
-        self.store.emit_movement(event).await?;
-
-        let since_seq = self
-            .state
-            .lock()
-            .expect("state lock poisoned")
-            .last_applied_global_seq
-            .unwrap_or(0);
-
-        let records = self.store.read_events_since(since_seq).await?;
-
-        let mut snapshot = self.state.lock().expect("state lock poisoned");
-        for record in &records {
-            apply_record(&mut snapshot, record)?;
-        }
-
-        Ok(())
+        self.app.store().append_movement_event(&event).await?;
+        self.app.catch_up_projection_from_store().await
     }
 }
